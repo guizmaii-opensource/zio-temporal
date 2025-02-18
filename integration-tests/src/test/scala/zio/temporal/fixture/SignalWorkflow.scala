@@ -10,7 +10,7 @@ trait SignalWorkflow {
   @workflowMethod
   def echoServer(prefix: String): String
 
-  @queryMethod(name = "progress")
+  @queryMethod
   def getProgress(default: Option[String]): Option[String]
 
   @signalMethod

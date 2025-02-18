@@ -254,14 +254,14 @@ object WorkflowSpec extends BaseTemporalSpec {
         _               <- ZIO.log("Started")
         workflowStub    <- ZTestWorkflowEnvironment.newUntypedWorkflowStub(workflowId, runId = None)
         _               <- ZIO.log("New stub created!")
-        progress        <- workflowStub.query[Option[String]]("progress", None)
+        progress        <- workflowStub.query[Option[String]]("getProgress", None)
         _               <- ZIO.log(s"Progress=$progress")
-        progressDefault <- workflowStub.query[Option[String]]("progress", Some("default"))
+        progressDefault <- workflowStub.query[Option[String]]("getProgress", Some("default"))
         _               <- ZIO.log(s"Progress_default=$progressDefault")
         _               <- workflowStub.signal("echo", "Hello!")
 
         progress2 <- workflowStub
-                       .query[Option[String]]("progress", None)
+                       .query[Option[String]]("getProgress", None)
                        .repeatWhile(_.isEmpty)
         _      <- ZIO.log(s"Progress2=$progress2")
         result <- workflowStub.result[String]
