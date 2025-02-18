@@ -45,10 +45,10 @@ jobs:
           check-latest: true
       - name: Test
         if: ${{ matrix.java == '17' && startsWith(matrix.scala, '2.13') }}
-        run: sbt ++${{ matrix.scala }} ";coverage;Test/compile;test;coverageAggregate"
+        run: sbt ++${{ matrix.scala }} ";coverage;clean;Test/compile;test;coverageAggregate"
       - name: Test
         if: ${{ matrix.java != '17' && !startsWith(matrix.scala, '2.13') }}
-        run: sbt ++${{ matrix.scala }} "Test/compile;test"
+        run: sbt ++${{ matrix.scala }} "clean;Test/compile;test"
       - name: Upload test results
         if: ${{ matrix.java == '17' && startsWith(matrix.scala, '2.13') }}
         uses: codecov/codecov-action@v3
