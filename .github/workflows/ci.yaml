@@ -33,6 +33,7 @@ jobs:
       fail-fast: false
       matrix:
         java: [ '11', '17', '21' ]
+        scala: [ '2.12.x', '2.13.x', '3.x' ]
     steps:
       - uses: actions/checkout@v4
       - uses: sbt/setup-sbt@v1
@@ -43,12 +44,13 @@ jobs:
           java-version: ${{ matrix.java }}
           check-latest: true
       - name: Test
-        if: ${{ matrix.java == '17'}}
-        run: sbt ";coverage;+test;coverageAggregate"
+        if: ${{ matrix.java == '17' && startsWith(matrix.scala, '2.13') }}
+        run: sbt ";coverage;++${{ matrix.scala }}! test;coverageAggregate"
       - name: Test
-        run: sbt +test
+        if: ${{ matrix.java != '17' && !startsWith(matrix.scala, '2.13') }}
+        run: sbt ++${{ matrix.scala }}! test
       - name: Upload test results
-        if: ${{ matrix.java == '17' }}
+        if: ${{ matrix.java == '17' && startsWith(matrix.scala, '2.13') }}
         uses: codecov/codecov-action@v3
         with:
           directory: ./target/scala-2.13/coverage-report
