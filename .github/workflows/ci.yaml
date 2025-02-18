@@ -43,11 +43,10 @@ jobs:
           java-version: ${{ matrix.java }}
           check-latest: true
       - name: Test
-        if: ${{ matrix.java == '17' }}
-        run: sbt ";coverage;test;coverageAggregate"
+        if: ${{ matrix.java == '17'}}
+        run: sbt ";coverage;+test;coverageAggregate"
       - name: Test
-        if: ${{ matrix.java != '17' }}
-        run: sbt test
+        run: sbt +test
       - name: Upload test results
         if: ${{ matrix.java == '17' }}
         uses: codecov/codecov-action@v3
