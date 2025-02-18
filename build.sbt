@@ -8,22 +8,11 @@ val scala3   = "3.3.5"
 
 val allScalaVersions          = List(scala212, scala213, scala3)
 val documentationScalaVersion = scala213
-val projectStableVersion      = settingKey[String]("project stable version")
 
-ThisBuild / projectStableVersion := {
-  lazy val prevStable = (ThisBuild / previousStableVersion).value
-  if ((ThisBuild / isSnapshot).value && prevStable.isDefined) prevStable.get
-  else (ThisBuild / version).value
-}
-
-ThisBuild / organization           := "com.guizmaii"
-ThisBuild / versionScheme          := Some("early-semver")
-ThisBuild / sonatypeCredentialHost := "s01.oss.sonatype.org"
-ThisBuild / sonatypeRepository     := "https://s01.oss.sonatype.org/service/local"
+ThisBuild / organization  := "com.guizmaii"
+ThisBuild / versionScheme := Some("early-semver")
 
 val publishSettings = Seq(
-  publishTo            := sonatypePublishToBundle.value,
-  publishMavenStyle    := true,
   organizationHomepage := Some(url("https://vhonta.dev")),
   homepage             := Some(url("https://zio-temporal.vhonta.dev")),
   licenses := Seq(
@@ -243,7 +232,7 @@ lazy val examples = projectMatrix
 lazy val mdocSettings = Seq(
   mdocIn := file("docs/src/main/mdoc"),
   mdocVariables := Map(
-    "VERSION"      -> projectStableVersion.value,
+    "VERSION"      -> version.value,
     "ORGANIZATION" -> organization.value,
     "EMAIL"        -> developers.value.head.email
   ),
@@ -264,7 +253,7 @@ lazy val unidocSettings = Seq(
     "-doc-title",
     "ZIO Temporal",
     "-doc-version",
-    s"v${projectStableVersion.value}"
+    s"v${version.value}"
   )
 )
 
@@ -276,7 +265,7 @@ ThisBuild / updateSiteVariables := {
   val variables =
     Map[String, String](
       "organization"           -> (ThisBuild / organization).value,
-      "latestVersion"          -> projectStableVersion.value,
+      "latestVersion"          -> version.value,
       "downloadReportsBaseUrl" -> "https://zio-temporal.vhonta.dev/assets"
     )
 
