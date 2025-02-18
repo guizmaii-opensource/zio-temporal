@@ -16,7 +16,6 @@ import scala.util.Try
   *   1. Can be used only inside a Temporal workflow code. Use [[zio.ZIO]] and its derivatives to implement activities
   *      and workflow starting and querying code. `run` method doesn't throw [[InterruptedException]]. The only way to
   *      unblock `run` is to complete the [[ZAsync]]
-  *
   *   2. [[ZAsync]] doesn't directly supports cancellation. Use [[io.temporal.workflow.CancellationScope]] to cancel and
   *      handle cancellations. The pattern is that a canceled operation completes its [[ZAsync]] with
   *      [[io.temporal.failure.CanceledFailure]] when canceled.
