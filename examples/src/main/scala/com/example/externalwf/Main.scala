@@ -109,6 +109,7 @@ object Main extends ZIOAppDefault {
     for {
       _ <- ZIO.logInfo("User is thinking what to do...")
       _ <- ZIO.sleep(20.seconds)
+
       /** 3 options to do
         *   - [[confirmPayed]], an external signal with parameters will be sent
         *   - [[cancelOrder]], a different signal will be sent
