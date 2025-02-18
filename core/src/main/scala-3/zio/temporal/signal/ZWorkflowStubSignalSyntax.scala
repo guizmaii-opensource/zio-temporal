@@ -122,6 +122,5 @@ object ZWorkflowStubSignalSyntax {
   }
 
   private def exprsToArray(xs: Seq[Expr[Any]])(using Quotes): Expr[Array[Any]] =
-    if (xs.isEmpty) '{ Array.empty[Any] }
-    else '{ Array(${ Expr.ofSeq(xs) }: _*) }
+    if (xs.isEmpty) '{ Array.empty[Any] } else '{ Array(${ Expr.ofSeq(xs) }: _*) }
 }

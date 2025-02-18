@@ -17,12 +17,11 @@ import scala.util.Try
   *      and workflow starting and querying code. `run` method doesn't throw [[InterruptedException]]. The only way to
   *      unblock `run` is to complete the [[ZAsync]]
   *
-  * 2. [[ZAsync]] doesn't directly supports cancellation. Use [[io.temporal.workflow.CancellationScope]] to cancel and
-  * handle cancellations. The pattern is that a canceled operation completes its [[ZAsync]] with
-  * [[io.temporal.failure.CanceledFailure]] when canceled.
-  *
-  * 3. Unlike [[zio.IO]] (that is '''lazy'''), [[ZAsync]] is '''strict'''. Whenever a [[ZAsync]] is created, The thunk
-  * is immediately started
+  *   2. [[ZAsync]] doesn't directly supports cancellation. Use [[io.temporal.workflow.CancellationScope]] to cancel and
+  *      handle cancellations. The pattern is that a canceled operation completes its [[ZAsync]] with
+  *      [[io.temporal.failure.CanceledFailure]] when canceled.
+  *   3. Unlike [[zio.IO]] (that is '''lazy'''), [[ZAsync]] is '''strict'''. Whenever a [[ZAsync]] is created, The thunk
+  *      is immediately started
   */
 sealed trait ZAsync[+A] { self =>
   protected val underlying: Promise[A] @uncheckedVariance
