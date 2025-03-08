@@ -68,12 +68,12 @@ object BuildConfig extends Dependencies {
 trait Dependencies {
 
   private object versions {
-    val temporal   = "1.27.1"
-    val zio        = "2.1.15"
+    val temporal   = "1.28.0"
+    val zio        = "2.1.16"
     val zioLogging = "2.5.0"
     val enumeratum = "1.7.5"
-    val jackson    = "2.18.2"
-    val otel       = "1.47.0"
+    val jackson    = "2.18.3"
+    val otel       = "1.48.0"
   }
 
   object org {
@@ -103,7 +103,7 @@ trait Dependencies {
     val testFrameworks = Seq(new TestFramework("zio.test.sbt.ZTestFramework"))
 
     // only for examples
-    val cli = org.zio %% "zio-cli" % "0.7.0"
+    val cli = org.zio %% "zio-cli" % "0.7.1"
   }
 
   object Enumeratum {
@@ -129,7 +129,7 @@ trait Dependencies {
   object Logging {
     val zio      = org.zio         %% "zio-logging"       % versions.zioLogging
     val zioSlf4j = org.zio         %% "zio-logging-slf4j" % versions.zioLogging
-    val logback  = "ch.qos.logback" % "logback-classic"   % "1.5.16"
+    val logback  = "ch.qos.logback" % "logback-classic"   % "1.5.17"
   }
 
   object Testing {
