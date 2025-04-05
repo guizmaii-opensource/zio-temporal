@@ -73,7 +73,7 @@ trait Dependencies {
     val zioLogging = "2.5.0"
     val enumeratum = "1.7.5"
     val jackson    = "2.18.3"
-    val otel       = "1.48.0"
+    val otel       = "1.49.0"
   }
 
   object org {
