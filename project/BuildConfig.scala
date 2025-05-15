@@ -145,6 +145,6 @@ trait Dependencies {
 
     val otel = Seq(otelApi, otelExporterOtlp, otelTracePropagators, otelOpentracingShim, otelSemvonc)
 
-    val micrometerOtlp = "io.micrometer" % "micrometer-registry-otlp" % "1.14.7"
+    val micrometerOtlp = "io.micrometer" % "micrometer-registry-otlp" % "1.15.0"
   }
 }
