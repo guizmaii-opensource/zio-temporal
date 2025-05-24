@@ -71,7 +71,7 @@ trait Dependencies {
     val temporal   = "1.29.0"
     val zio        = "2.1.18"
     val zioLogging = "2.5.0"
-    val enumeratum = "1.7.6"
+    val enumeratum = "1.9.0"
     val jackson    = "2.19.0"
     val otel       = "1.50.0"
   }
