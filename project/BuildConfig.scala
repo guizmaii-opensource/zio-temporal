@@ -69,7 +69,7 @@ trait Dependencies {
 
   private object versions {
     val temporal   = "1.31.0"
-    val zio        = "2.1.20"
+    val zio        = "2.1.21"
     val zioLogging = "2.5.1"
     val enumeratum = "1.9.0"
     val jackson    = "2.20.0"
