@@ -103,7 +103,7 @@ trait Dependencies {
     val testFrameworks = Seq(new TestFramework("zio.test.sbt.ZTestFramework"))
 
     // only for examples
-    val cli = org.zio %% "zio-cli" % "0.7.3"
+    val cli = org.zio %% "zio-cli" % "0.7.4"
   }
 
   object Enumeratum {
