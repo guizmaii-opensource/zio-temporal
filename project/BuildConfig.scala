@@ -69,10 +69,10 @@ trait Dependencies {
 
   private object versions {
     val temporal   = "1.31.0"
-    val zio        = "2.1.21"
+    val zio        = "2.1.22"
     val zioLogging = "2.5.1"
     val enumeratum = "1.9.0"
-    val jackson    = "2.20.0"
+    val jackson    = "2.20.1"
     val otel       = "1.54.1"
   }
 
@@ -129,7 +129,7 @@ trait Dependencies {
   object Logging {
     val zio      = org.zio         %% "zio-logging"       % versions.zioLogging
     val zioSlf4j = org.zio         %% "zio-logging-slf4j" % versions.zioLogging
-    val logback  = "ch.qos.logback" % "logback-classic"   % "1.5.18"
+    val logback  = "ch.qos.logback" % "logback-classic"   % "1.5.20"
   }
 
   object Testing {
@@ -145,6 +145,6 @@ trait Dependencies {
 
     val otel = Seq(otelApi, otelExporterOtlp, otelTracePropagators, otelOpentracingShim, otelSemvonc)
 
-    val micrometerOtlp = "io.micrometer" % "micrometer-registry-otlp" % "1.15.4"
+    val micrometerOtlp = "io.micrometer" % "micrometer-registry-otlp" % "1.15.5"
   }
 }
