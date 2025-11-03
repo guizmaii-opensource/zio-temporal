@@ -86,7 +86,7 @@ class ScalapbPayloadConverter extends PayloadConverter {
     ) match {
       case optional: Optional =>
         optional.value match {
-          case None => None.asInstanceOf[T]
+          case None        => None.asInstanceOf[T]
           case Some(value) =>
             Some(
               getCompanion(content, dropTemporalZioPrefix(value.typeUrl), valueClass)

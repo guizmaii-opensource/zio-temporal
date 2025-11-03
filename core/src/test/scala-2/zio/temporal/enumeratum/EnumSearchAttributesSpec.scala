@@ -9,7 +9,7 @@ import zio.temporal.{ZSearchAttribute, ZSearchAttributeMeta}
 
 object EnumSearchAttributesSpec {
   sealed abstract class Color(val value: String) extends StringEnumEntry
-  object Color extends StringEnum[Color] {
+  object Color                                   extends StringEnum[Color] {
     case object Red   extends Color("red")
     case object Green extends Color("green")
     case object Blue  extends Color("blue")
@@ -18,7 +18,7 @@ object EnumSearchAttributesSpec {
   }
 
   sealed abstract class Planet(val mass: Double, val radius: Double) extends EnumEntry
-  object Planet extends Enum[Planet] {
+  object Planet                                                      extends Enum[Planet] {
     case object Mercury extends Planet(3.303e+23, 2.4397e6)
     case object Venus   extends Planet(4.869e+24, 6.0518e6)
     case object Earth   extends Planet(5.976e+24, 6.37814e6)

@@ -38,7 +38,7 @@ object MonitoringMain extends ZIOAppDefault {
     def invokeWorkflows(who: String): ZIO[ZWorkflowClient, TemporalException, Unit] =
       ZIO.serviceWithZIO[ZWorkflowClient] { client =>
         for {
-          workflowId <- Random.nextUUID
+          workflowId     <- Random.nextUUID
           sampleWorkflow <- client.newWorkflowStub[SampleWorkflow](
                               ZWorkflowOptions
                                 .withWorkflowId(workflowId.toString)

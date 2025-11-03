@@ -63,7 +63,7 @@ object EitherWorkflowMain extends ZIOAppDefault {
 
     val invokeWorkflows = ZIO.serviceWithZIO[ZWorkflowClient] { client =>
       for {
-        workflowId <- Random.nextUUID
+        workflowId     <- Random.nextUUID
         eitherWorkflow <- client.newWorkflowStub[EitherWorkflow](
                             ZWorkflowOptions
                               .withWorkflowId(workflowId.toString)
@@ -72,7 +72,7 @@ object EitherWorkflowMain extends ZIOAppDefault {
                                 ZRetryOptions.default.withMaximumAttempts(1)
                               )
                           )
-        _ <- ZIO.logInfo("Running workflow with either return type...")
+        _   <- ZIO.logInfo("Running workflow with either return type...")
         res <- ZWorkflowStub.execute(
                  eitherWorkflow.start
                )

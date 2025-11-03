@@ -58,7 +58,7 @@ object AdvancedWorkflowSpec extends BaseTemporalSpec {
                    stub.start
                  )
             // give time for activities to execute
-            _ <- ZIO.sleep(2.seconds)
+            _    <- ZIO.sleep(2.seconds)
             list <- ZWorkflowStub.query(
                       stub.query1
                     )
@@ -101,7 +101,7 @@ object AdvancedWorkflowSpec extends BaseTemporalSpec {
 
         for {
           uuid <- ZIO.randomWith(_.nextUUID)
-          _ <- ZTestWorkflowEnvironment.newWorker(taskQueue) @@
+          _    <- ZTestWorkflowEnvironment.newWorker(taskQueue) @@
                  ZWorker.addWorkflow[SodaWorkflow].from(new SodaWorkflowImpl) @@
                  ZWorker.addWorkflow[SodaChildWorkflow].from(new SodaChildWorkflowImpl) @@
                  ZWorker.addWorkflow[JuiceWorkflow].from(new JuiceWorkflowImpl) @@
@@ -151,7 +151,7 @@ object AdvancedWorkflowSpec extends BaseTemporalSpec {
             _ <- ZTestWorkflowEnvironment.newWorker(taskQueue) @@
                    ZWorker.addWorkflow[SagaWorkflowImpl].fromClass @@
                    ZWorker.addActivityImplementation(new TransferActivityImpl(successFunc, successFunc))
-            _ <- ZTestWorkflowEnvironment.setup()
+            _            <- ZTestWorkflowEnvironment.setup()
             sagaWorkflow <- ZTestWorkflowEnvironment.newWorkflowStub[SagaWorkflow](
                               ZWorkflowOptions
                                 .withWorkflowId(workflowId.toString)
@@ -174,9 +174,9 @@ object AdvancedWorkflowSpec extends BaseTemporalSpec {
           val From = "from"
           val To   = "to"
 
-          val compensated = new AtomicBoolean(false)
-          val withdrawn   = new AtomicInteger(0)
-          val error       = TransferError("fraud")
+          val compensated  = new AtomicBoolean(false)
+          val withdrawn    = new AtomicInteger(0)
+          val error        = TransferError("fraud")
           val withdrawFunc = (_: String, _: BigDecimal) =>
             ZIO.succeed {
               withdrawn.incrementAndGet()
@@ -217,7 +217,7 @@ object AdvancedWorkflowSpec extends BaseTemporalSpec {
                      .fromClass @@
                    ZWorker.addActivityImplementation(new TransferActivityImpl(depositFunc, withdrawFunc))
 
-            _ <- ZTestWorkflowEnvironment.setup()
+            _            <- ZTestWorkflowEnvironment.setup()
             sagaWorkflow <- ZTestWorkflowEnvironment.newWorkflowStub[SagaWorkflow](
                               ZWorkflowOptions
                                 .withWorkflowId(workflowId.toString)
@@ -241,7 +241,7 @@ object AdvancedWorkflowSpec extends BaseTemporalSpec {
       test("run workflow with zasync") {
         val taskQueue = "zasync-queue"
 
-        val order = new AtomicReference(ListBuffer.empty[(String, Int)])
+        val order   = new AtomicReference(ListBuffer.empty[(String, Int)])
         val fooFunc = (x: Int) => {
           println(s"foo($x)")
           order.get += ("foo" -> x)
@@ -293,7 +293,7 @@ object AdvancedWorkflowSpec extends BaseTemporalSpec {
         val taskQueue = "payment-queue"
         for {
           workflowId <- ZIO.randomWith(_.nextUUID)
-          _ <- ZTestWorkflowEnvironment.newWorker(taskQueue) @@
+          _          <- ZTestWorkflowEnvironment.newWorker(taskQueue) @@
                  ZWorker.addWorkflow[PaymentWorkflowImpl].fromClass
 
           // Setup the test environment
@@ -322,7 +322,7 @@ object AdvancedWorkflowSpec extends BaseTemporalSpec {
         val taskQueue = "retry-queue"
         for {
           workflowId <- ZIO.randomWith(_.nextUUID)
-          _ <- ZTestWorkflowEnvironment.newWorker(taskQueue) @@
+          _          <- ZTestWorkflowEnvironment.newWorker(taskQueue) @@
                  ZWorker.addWorkflow[RetryWorkflowImpl].fromClass
 
           _ <- ZTestWorkflowEnvironment.setup()
@@ -341,7 +341,7 @@ object AdvancedWorkflowSpec extends BaseTemporalSpec {
         val taskQueue = "memo-queue"
         for {
           workflowId <- ZIO.randomWith(_.nextUUID)
-          _ <- ZTestWorkflowEnvironment.newWorker(taskQueue) @@
+          _          <- ZTestWorkflowEnvironment.newWorker(taskQueue) @@
                  ZWorker.addWorkflow[MemoWorkflowImpl].fromClass
 
           _ <- ZTestWorkflowEnvironment.setup()

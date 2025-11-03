@@ -122,7 +122,7 @@ object ZScheduleActionExecution {
 
   def apply(value: ScheduleActionExecution): ZScheduleActionExecution = value match {
     case value: ScheduleActionExecutionStartWorkflow => new StartWorkflow(value)
-    case _ =>
+    case _                                           =>
       logger.warn(
         s"Unknown implementation of io.temporal.client.schedules.ScheduleActionExecution found: class=${value.getClass} value=$value"
       )

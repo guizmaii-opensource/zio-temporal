@@ -35,7 +35,7 @@ class FoodOrderWorkflowImpl extends FoodOrderWorkflow {
     )
 
     logger.info("Waiting until payment received or cancel or timeout...")
-    val touched = ZWorkflow.awaitWhile(2.minutes)(state =:= OrderState.Initial)
+    val touched          = ZWorkflow.awaitWhile(2.minutes)(state =:= OrderState.Initial)
     val deliveryWorkflow = ZWorkflow.newExternalWorkflowStub[FoodDeliveryWorkflow](
       FoodDeliveryWorkflow.makeId(ZWorkflow.info.workflowId)
     )

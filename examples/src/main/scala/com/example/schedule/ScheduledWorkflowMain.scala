@@ -49,7 +49,7 @@ object ScheduledWorkflowMain extends ZIOAppDefault {
 
         description <- handle.describe
         _           <- ZIO.logInfo(s"Created schedule=$description")
-        _ <- scheduleClient
+        _           <- scheduleClient
                .listSchedules()
                .mapZIO(schd => ZIO.logInfo(s"Found schedule=$schd"))
                .runDrain
@@ -72,7 +72,7 @@ object ScheduledWorkflowMain extends ZIOAppDefault {
           _   <- handle.unpause(note = Some("Unpause"))
           _   <- ZIO.logInfo(s"Backfill schdule=${handle.id}")
           now <- Clock.instant
-          _ <-
+          _   <-
             handle.backfill(
               List(
                 ZScheduleBackfill(startAt = now.minusMillis(1.day.toMillis), endAt = now.minusMillis(1.hour.toMillis))

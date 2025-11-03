@@ -168,7 +168,7 @@ object JacksonParameterizedWorkflowMain extends ZIOAppDefault {
 
     val flow = ZIO.serviceWithZIO[ZWorkflowClient] { client =>
       for {
-        uuid <- ZIO.randomWith(_.nextUUID)
+        uuid   <- ZIO.randomWith(_.nextUUID)
         sodaWf <- client.newWorkflowStub[SodaWorkflow](
                     ZWorkflowOptions
                       .withWorkflowId(s"jackson-soda/$uuid")

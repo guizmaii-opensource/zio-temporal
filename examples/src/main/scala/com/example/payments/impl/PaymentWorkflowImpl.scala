@@ -117,7 +117,7 @@ class PaymentWorkflowImpl extends PaymentWorkflow {
   private def failTransaction(error: Throwable): Unit =
     state.update { trxn =>
       val InvalidConfirmationCodeError = nameOf[InvalidConfirmationCodeError]
-      val description = error match {
+      val description                  = error match {
         case ActivityFailure.Cause(ApplicationFailure(InvalidConfirmationCodeError, _, _, _)) =>
           "Contact issuer bank"
         // Confirmation timed out

@@ -83,14 +83,14 @@ object VersionedWorkerMain extends ZIOCliDefault {
                TaskQueue,
                BuildIdOperation.newIdInNewDefaultSet(buildId)
              )
-        subscriptionId <- Random.nextUUID
+        subscriptionId       <- Random.nextUUID
         subscriptionWorkflow <- client.newWorkflowStub[SubscriptionWorkflow](
                                   ZWorkflowOptions
                                     .withWorkflowId(subscriptionId.toString)
                                     .withTaskQueue(TaskQueue)
                                 )
 
-        _ <- ZIO.logInfo(s"Starting subscription workflow id=$subscriptionId")
+        _         <- ZIO.logInfo(s"Starting subscription workflow id=$subscriptionId")
         execution <- ZWorkflowStub.start(
                        subscriptionWorkflow.proceedRecurringSubscription(subscriptionId.toString)
                      )

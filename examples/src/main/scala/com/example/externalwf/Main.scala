@@ -23,7 +23,7 @@ object Main extends ZIOAppDefault {
 
     val invokeWorkflows = ZIO.serviceWithZIO[ZWorkflowClient] { client =>
       for {
-        workflowId <- Random.nextUUID
+        workflowId    <- Random.nextUUID
         orderWorkflow <- client.newWorkflowStub[FoodOrderWorkflow](
                            ZWorkflowOptions
                              .withWorkflowId(workflowId.toString)
@@ -64,7 +64,7 @@ object Main extends ZIOAppDefault {
                  )
                )
              )
-        _ <- userInteraction(orderWorkflow)
+        _        <- userInteraction(orderWorkflow)
         finished <- ZIO
                       .whenZIO(orderWorkflow.result[Boolean])(ZIO.succeed("finished"))
                       .someOrElse("not finished")

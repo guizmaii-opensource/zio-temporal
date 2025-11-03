@@ -38,8 +38,8 @@ class TemporalPaymentService(workflowClient: ZWorkflowClient) extends PaymentSer
   override def createPayment(sender: UUID, receiver: UUID, amount: BigDecimal): IO[PaymentError, UUID] =
     withErrorHandling {
       for {
-        transactionId <- ZIO.randomWith(_.nextUUID)
-        _             <- updateLogContext(transactionId)
+        transactionId   <- ZIO.randomWith(_.nextUUID)
+        _               <- updateLogContext(transactionId)
         paymentWorkflow <- workflowClient.newWorkflowStub[PaymentWorkflow](
                              ZWorkflowOptions
                                .withWorkflowId(transactionId.toString)
@@ -69,9 +69,9 @@ class TemporalPaymentService(workflowClient: ZWorkflowClient) extends PaymentSer
   override def getState(transactionId: UUID): IO[PaymentError, Option[Transaction]] =
     withErrorHandling {
       for {
-        _            <- updateLogContext(transactionId)
-        workflowStub <- workflowClient.newWorkflowStub[PaymentWorkflow](workflowId = transactionId.toString)
-        _            <- ZIO.logInfo("Checking if transaction is finished...")
+        _                <- updateLogContext(transactionId)
+        workflowStub     <- workflowClient.newWorkflowStub[PaymentWorkflow](workflowId = transactionId.toString)
+        _                <- ZIO.logInfo("Checking if transaction is finished...")
         maybeTransaction <- ZIO.whenZIO(
                               ZWorkflowStub.query(
                                 workflowStub.isFinished()
@@ -90,7 +90,7 @@ class TemporalPaymentService(workflowClient: ZWorkflowClient) extends PaymentSer
         _            <- updateLogContext(transactionId)
         workflowStub <- workflowClient.newWorkflowStub[PaymentWorkflow](workflowId = transactionId.toString)
         _            <- ZIO.logInfo("Going to send confirmation")
-        isFinished <- ZWorkflowStub.query(
+        isFinished   <- ZWorkflowStub.query(
                         workflowStub.isFinished()
                       )
         _ <- ZIO.unless(isFinished) {

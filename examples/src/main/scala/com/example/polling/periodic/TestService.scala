@@ -22,7 +22,7 @@ class TestService private (tryAttemptsRef: Ref[Int], errorAttempts: Int) {
     for {
       tryAttempts <- tryAttemptsRef.updateAndGet(_ + 1)
       _           <- ZIO.logInfo(s"Attempt try #$tryAttempts")
-      _ <- ZIO.when(tryAttempts % errorAttempts != 0) {
+      _           <- ZIO.when(tryAttempts % errorAttempts != 0) {
              ZIO.fail(new TestServiceException("Service is down"))
            }
     } yield "OK"

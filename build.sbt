@@ -15,7 +15,7 @@ ThisBuild / versionScheme := Some("early-semver")
 val publishSettings = Seq(
   organizationHomepage := Some(url("https://vhonta.dev")),
   homepage             := Some(url("https://zio-temporal.vhonta.dev")),
-  licenses := Seq(
+  licenses             := Seq(
     "Apache 2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0")
   ),
   scmInfo := Some(
@@ -177,7 +177,7 @@ lazy val `integration-tests` = projectMatrix
     },
     testFrameworks ++= Zio.testFrameworks,
     (Test / parallelExecution) := false,
-    Compile / PB.targets := Seq(
+    Compile / PB.targets       := Seq(
       scalapb.gen(
         flatPackage = true,
         grpc = false
@@ -212,7 +212,7 @@ lazy val examples = projectMatrix
   .in(file("examples"))
   .settings(baseSettings, noPublishSettings)
   .settings(
-    coverageEnabled := false,
+    coverageEnabled      := false,
     Compile / PB.targets := Seq(
       scalapb.gen(
         flatPackage = true,
@@ -230,7 +230,7 @@ lazy val examples = projectMatrix
 
 // MDOC
 lazy val mdocSettings = Seq(
-  mdocIn := file("docs/src/main/mdoc"),
+  mdocIn        := file("docs/src/main/mdoc"),
   mdocVariables := Map(
     "VERSION"      -> version.value,
     "ORGANIZATION" -> organization.value,
