@@ -17,7 +17,7 @@ object ActivitySpec extends BaseTemporalSpec {
     test("runs simple activity") {
       ZTestActivityEnvironment.activityRunOptionsWithZIO[Any] { implicit options =>
         for {
-          _ <- ZTestActivityEnvironment.addActivityImplementation(new ZioActivityImpl)
+          _    <- ZTestActivityEnvironment.addActivityImplementation(new ZioActivityImpl)
           stub <- ZTestActivityEnvironment
                     .newActivityStub[ZioActivity](
                       ZActivityOptions.withStartToCloseTimeout(5.seconds)
@@ -30,7 +30,7 @@ object ActivitySpec extends BaseTemporalSpec {
       ZTestActivityEnvironment.activityRunOptionsWithZIO[Any] { implicit options =>
         val numIterations = new AtomicInteger()
         for {
-          _ <- ZTestActivityEnvironment.addActivityImplementation(new FibonacciHeartbeatActivityImpl(numIterations))
+          _    <- ZTestActivityEnvironment.addActivityImplementation(new FibonacciHeartbeatActivityImpl(numIterations))
           stub <- ZTestActivityEnvironment
                     .newActivityStub[FibonacciHeartbeatActivity](
                       ZActivityOptions.withStartToCloseTimeout(1.minute)
@@ -48,7 +48,7 @@ object ActivitySpec extends BaseTemporalSpec {
       ZTestActivityEnvironment.activityRunOptionsWithZIO[Any] { implicit options =>
         val numIterations = new AtomicInteger()
         for {
-          _ <- ZTestActivityEnvironment.addActivityImplementation(new FibonacciHeartbeatActivityImpl(numIterations))
+          _    <- ZTestActivityEnvironment.addActivityImplementation(new FibonacciHeartbeatActivityImpl(numIterations))
           stub <- ZTestActivityEnvironment
                     .newActivityStub[FibonacciHeartbeatActivity](
                       ZActivityOptions.withStartToCloseTimeout(1.minute)

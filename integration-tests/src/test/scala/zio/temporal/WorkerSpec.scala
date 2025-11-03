@@ -22,12 +22,12 @@ object WorkerSpec extends BaseTemporalSpec {
 
       for {
         workflowId <- ZIO.randomWith(_.nextUUID)
-        _ <- ZTestWorkflowEnvironment.newWorker(taskQueue) @@
+        _          <- ZTestWorkflowEnvironment.newWorker(taskQueue) @@
                ZWorker.addWorkflowImplementations(
                  ZWorkflowImplementationClass[GreetingWorkflowImpl],
                  ZWorkflowImplementationClass[GreetingChildImpl]
                )
-        _ <- ZTestWorkflowEnvironment.setup()
+        _                <- ZTestWorkflowEnvironment.setup()
         greetingWorkflow <- ZTestWorkflowEnvironment.newWorkflowStub[GreetingWorkflow](
                               ZWorkflowOptions
                                 .withWorkflowId(workflowId.toString)
@@ -45,7 +45,7 @@ object WorkerSpec extends BaseTemporalSpec {
       ZTestWorkflowEnvironment.activityRunOptionsWithZIO[Any] { implicit activityRunOptions =>
         for {
           workflowId <- ZIO.randomWith(_.nextUUID)
-          _ <- ZTestWorkflowEnvironment.newWorker(taskQueue) @@
+          _          <- ZTestWorkflowEnvironment.newWorker(taskQueue) @@
                  ZWorker.addWorkflowImplementations(
                    List(
                      ZWorkflowImplementationClass[MultiActivitiesWorkflowImpl]
@@ -55,7 +55,7 @@ object WorkerSpec extends BaseTemporalSpec {
                    ZActivityImplementationObject(new ZioActivityImpl()),
                    ZActivityImplementationObject(ComplexTypesActivityImpl())
                  )
-          _ <- ZTestWorkflowEnvironment.setup()
+          _             <- ZTestWorkflowEnvironment.setup()
           multiWorkflow <- ZTestWorkflowEnvironment.newWorkflowStub[MultiActivitiesWorkflow](
                              ZWorkflowOptions
                                .withWorkflowId(workflowId.toString)
@@ -85,11 +85,11 @@ object WorkerSpec extends BaseTemporalSpec {
 
       for {
         workflowId <- ZIO.randomWith(_.nextUUID)
-        _ <- ZTestWorkflowEnvironment.newWorker(taskQueue) @@
+        _          <- ZTestWorkflowEnvironment.newWorker(taskQueue) @@
                ZWorker.addWorkflowImplementations(
                  List(ZWorkflowImplementationClass[EvenMoreMultiActivitiesWorkflowImpl])
                ) @@ ZWorker.addActivityImplementationsLayer(activitiesLayer)
-        _ <- ZTestWorkflowEnvironment.setup()
+        _             <- ZTestWorkflowEnvironment.setup()
         multiWorkflow <- ZTestWorkflowEnvironment.newWorkflowStub[MultiActivitiesWorkflow](
                            ZWorkflowOptions
                              .withWorkflowId(workflowId.toString)
@@ -110,7 +110,7 @@ object WorkerSpec extends BaseTemporalSpec {
 
       for {
         workflowId <- ZIO.randomWith(_.nextUUID)
-        _ <- ZTestWorkflowEnvironment.newWorker(taskQueue) @@
+        _          <- ZTestWorkflowEnvironment.newWorker(taskQueue) @@
                ZWorker.addWorkflowImplementations(
                  List(ZWorkflowImplementationClass[EvenMoreMultiActivitiesWorkflowImpl])
                ) @@
@@ -121,7 +121,7 @@ object WorkerSpec extends BaseTemporalSpec {
                  ZLayer.fromFunction(ComplexTypesActivityImpl()(_: ZActivityRunOptions[Any]))
                ) @@
                ZWorker.addActivityImplementationLayer(ActivityWithDependenciesImpl.make)
-        _ <- ZTestWorkflowEnvironment.setup()
+        _             <- ZTestWorkflowEnvironment.setup()
         multiWorkflow <- ZTestWorkflowEnvironment.newWorkflowStub[MultiActivitiesWorkflow](
                            ZWorkflowOptions
                              .withWorkflowId(workflowId.toString)

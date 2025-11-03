@@ -14,8 +14,8 @@ private[zio] object StubProxies {
     delegateCtg: ClassTag[Delegate],
     proxiedCtg:  ClassTag[Proxied]
   ): Delegate with Proxied = {
-    val Delegate = delegateCtg.runtimeClass
-    val Proxied  = proxiedCtg.runtimeClass
+    val Delegate    = delegateCtg.runtimeClass
+    val Proxied     = proxiedCtg.runtimeClass
     val classLoader = Option(Thread.currentThread().getContextClassLoader).getOrElse {
       getClass.getClassLoader
     }

@@ -86,7 +86,7 @@ class NotificationActivityBasedWorkflowImpl extends NotificationActivityBasedWor
   override def send(msg: String): Unit = {
     senders.foldLeft(false) {
       case (sent @ true, _) => sent
-      case (_, sender) =>
+      case (_, sender)      =>
         try {
           // try to send
           logger.info(s"Trying ${sender.stubbedClass}...")
@@ -115,7 +115,7 @@ object PolymorphicActivityMain extends ZIOAppDefault {
         ZWorker.addActivityImplementationService[SmsNotificationsSenderActivity]
 
     def sendMsg(client: ZWorkflowClient, msg: String): TemporalIO[Unit] = for {
-      workflowId <- ZIO.randomWith(_.nextUUID)
+      workflowId            <- ZIO.randomWith(_.nextUUID)
       notificationsWorkflow <- client.newWorkflowStub[NotificationActivityBasedWorkflow](
                                  ZWorkflowOptions
                                    .withWorkflowId(workflowId.toString)

@@ -29,7 +29,7 @@ class RecordProcessorActivityImpl(
 
     def processLoop(offset: Int): Task[Int] =
       recordLoader.getRecord(offset).flatMap {
-        case None => ZIO.succeed(offset)
+        case None         => ZIO.succeed(offset)
         case Some(record) =>
           recordProcessor.processRecord(record) *>
             context.heartbeat(offset) *>

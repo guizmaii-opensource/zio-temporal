@@ -16,7 +16,7 @@ trait NotificationsSenderWorkflow {
 
 // NOTE: must have a @workflowInterface annotation
 @workflowInterface
-trait SmsNotificationsSenderWorkflow extends NotificationsSenderWorkflow
+trait SmsNotificationsSenderWorkflow     extends NotificationsSenderWorkflow
 class SmsNotificationsSenderWorkflowImpl extends SmsNotificationsSenderWorkflow {
   private val logger = ZWorkflow.makeLogger
 
@@ -71,7 +71,7 @@ class NotificationChildBasedWorkflowImpl extends NotificationChildBasedWorkflow 
   override def send(msg: String): Unit = {
     senders.foldLeft(false) {
       case (sent @ true, _) => sent
-      case (_, sender) =>
+      case (_, sender)      =>
         try {
           // try to send
           logger.info(s"Trying ${sender.stubbedClass}...")
@@ -101,7 +101,7 @@ object PolymorphicChildWorkflowsMain extends ZIOAppDefault {
         ZWorker.addWorkflow[PushNotificationsSenderWorkflowImpl].fromClass
 
     def sendMsg(client: ZWorkflowClient, msg: String): TemporalIO[Unit] = for {
-      workflowId <- ZIO.randomWith(_.nextUUID)
+      workflowId            <- ZIO.randomWith(_.nextUUID)
       notificationsWorkflow <- client.newWorkflowStub[NotificationChildBasedWorkflow](
                                  ZWorkflowOptions
                                    .withWorkflowId(workflowId.toString)

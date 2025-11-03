@@ -36,7 +36,7 @@ private[zio] object ClassTagUtils {
   }
 
   def getActivityType(cls: Class[_], methodName: String): String = {
-    val actMethods = cls.getMethods.filter(_.getName == methodName).toList
+    val actMethods         = cls.getMethods.filter(_.getName == methodName).toList
     val activityNamePrefix = Option(cls.getAnnotation(Predef.classOf[activityInterface]))
       .map(_.namePrefix())
       .getOrElse("")

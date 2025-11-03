@@ -11,7 +11,7 @@ object WorkflowExecutionsMain extends ZIOAppDefault {
 
   override def run: ZIO[ZIOAppArgs with Scope, Any, Any] = {
     val program = for {
-      _ <- ZWorkflowServiceStubs.setup()
+      _          <- ZWorkflowServiceStubs.setup()
       executions <- ZIO.serviceWithZIO[ZWorkflowClient] { client =>
                       client
                         .streamExecutions(

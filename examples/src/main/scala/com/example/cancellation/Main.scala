@@ -21,13 +21,13 @@ object Main extends ZIOAppDefault {
 
     val invokeWorkflows = ZIO.serviceWithZIO[ZWorkflowClient] { client =>
       for {
-        workflowId <- Random.nextUUID
+        workflowId       <- Random.nextUUID
         greetingWorkflow <- client.newWorkflowStub[GreetingWorkflow](
                               ZWorkflowOptions
                                 .withWorkflowId(workflowId.toString)
                                 .withTaskQueue(TaskQueue)
                             )
-        _ <- ZIO.logInfo("Running greeting with cancellation workflow!")
+        _   <- ZIO.logInfo("Running greeting with cancellation workflow!")
         res <- ZWorkflowStub.execute(
                  greetingWorkflow.getGreeting("World")
                )

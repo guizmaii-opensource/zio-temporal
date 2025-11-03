@@ -67,7 +67,7 @@ object ZActivity {
   )(implicit zactivityOptions: ZActivityRunOptions[R]
   ): A = {
     zactivityOptions.activityCompletionClientOpt match {
-      case None => runSyncImpl(action, convertError)
+      case None                           => runSyncImpl(action, convertError)
       case Some(activityCompletionClient) =>
         val ctx = Activity.getExecutionContext
         try {
@@ -99,7 +99,7 @@ object ZActivity {
       onDie = {
         // don't need to handle it
         case _: ActivityCompletionException =>
-        case cause =>
+        case cause                          =>
           activityCompletionClient.completeExceptionally(
             taskToken,
             wrap(cause)
@@ -108,7 +108,7 @@ object ZActivity {
       onFailure = {
         // don't need to handle it
         case _: ActivityCompletionException =>
-        case error =>
+        case error                          =>
           activityCompletionClient.completeExceptionally(
             taskToken,
             convertError(error)
