@@ -2,12 +2,10 @@ import BuildConfig.*
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
-val scala212 = "2.12.20"
-val scala213 = "2.13.17"
 val scala3   = "3.3.7"
 
-val allScalaVersions          = List(scala212, scala213, scala3)
-val documentationScalaVersion = scala213
+val allScalaVersions          = List(scala3)
+val documentationScalaVersion = scala3
 
 ThisBuild / organization  := "com.guizmaii"
 ThisBuild / versionScheme := Some("early-semver")
@@ -46,7 +44,7 @@ lazy val coverageSettings = Seq(
 )
 
 lazy val baseProjectSettings = Seq(
-  scalaVersion       := scala213,
+  scalaVersion       := scala3,
   crossScalaVersions := allScalaVersions,
   scalacOptions ++= {
     val baseOptions = Seq(
@@ -90,7 +88,7 @@ lazy val root = project
   ) // https://www.scala-sbt.org/1.x/docs/Cross-Build.html#Cross+building+a+project+statefully,
   .settings(
     name         := "zio-temporal-root",
-    scalaVersion := scala213
+    scalaVersion := scala3
   )
   .aggregate(
     core.projectRefs ++
@@ -111,13 +109,13 @@ lazy val docs = project
     baseSettings,
     mdocSettings,
     noPublishSettings,
-    scalaVersion := scala213,
+    scalaVersion := scala3,
     libraryDependencies ++= docsLibs
   )
   .dependsOn(
-    core.jvm(scala213),
-    protobuf.jvm(scala213),
-    testkit.jvm(scala213)
+    core.jvm(scala3),
+    protobuf.jvm(scala3),
+    testkit.jvm(scala3)
   )
   .enablePlugins(MdocPlugin, DocusaurusPlugin)
 
@@ -242,9 +240,9 @@ lazy val mdocSettings = Seq(
 lazy val unidocSettings = Seq(
   cleanFiles += (ScalaUnidoc / unidoc / target).value,
   ScalaUnidoc / unidoc / unidocProjectFilter := inProjects(
-    core.jvm(scala213),
-    protobuf.jvm(scala213),
-    testkit.jvm(scala213)
+    core.jvm(scala3),
+    protobuf.jvm(scala3),
+    testkit.jvm(scala3)
   ),
   ScalaUnidoc / unidoc / target := (LocalRootProject / baseDirectory).value / "website" / "static" / "api",
   ScalaUnidoc / unidoc / scalacOptions ++= Seq(
