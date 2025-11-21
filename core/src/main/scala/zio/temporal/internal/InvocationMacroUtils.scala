@@ -7,6 +7,7 @@ import zio.temporal.schedules.ZScheduleStartWorkflowStub
 import zio.temporal.workflow.*
 
 import java.util.concurrent.CompletableFuture
+import scala.annotation.tailrec
 import scala.quoted.*
 import scala.reflect.ClassTag
 
@@ -30,7 +31,8 @@ class InvocationMacroUtils[Q <: Quotes](using override val q: Q) extends MacroUt
   protected val IsWorkflowImplicitTC = TypeRepr.typeConstructorOf(classOf[IsWorkflow[Any]])
   protected val IsActivityImplicitC  = TypeRepr.typeConstructorOf(classOf[IsActivity[Any]])
 
-  private val lowestBaseTypes: List[Symbol] =
+  // Types that indicate erasure to Object (most general types in the type hierarchy)
+  private val erasedToObjectTypes: List[Symbol] =
     List(typeSymbolOf[java.lang.Object], typeSymbolOf[Matchable], typeSymbolOf[Any])
 
   def betaReduceExpression[A: Type](f: Expr[A]): Expr[A] =
@@ -112,22 +114,64 @@ class InvocationMacroUtils[Q <: Quotes](using override val q: Q) extends MacroUt
     )
 
     def warnPossibleSerializationIssues(): Unit = {
+      def getNonNullTypeFromUnion(t: TypeRepr): Option[TypeRepr] =
+        t.dealias match {
+          case OrType(left, right) =>
+            if (left =:= TypeRepr.of[Null]) Some(right)
+            else if (right =:= TypeRepr.of[Null]) Some(left)
+            else None
+          case _ => None
+        }
+
+      // Recursively dealias to handle nested type aliases and newtypes
+      @tailrec
+      def fullyDealias(tpe: TypeRepr): TypeRepr = {
+        val dealiased = tpe.dealias
+        if dealiased =:= tpe then dealiased
+        else fullyDealias(dealiased)
+      }
+
+      // Check if a type would be erased to Object at runtime
+      // Returns true if the type would be erased, but does NOT include exact Any/Object types
+      def wouldBeErasedToObject(t: TypeRepr): Boolean = {
+        // Try multiple ways to get the underlying type:
+        // 1. Full dealiasing for type aliases
+        // 2. Widen for refined types and opaque types
+        val dealiasedType = fullyDealias(t)
+        val widenedType   = dealiasedType.widen
+
+        // Collect base classes from both dealiased and widened types
+        // This handles both regular types and opaque types
+        val baseClassesDealiased = dealiasedType.baseClasses
+        val baseClassesWidened   = widenedType.baseClasses
+        val allBaseClasses       = (baseClassesDealiased ++ baseClassesWidened).distinct
+
+        // If all base classes are top-level types (Object/Any/Matchable), it would be erased to Object
+        allBaseClasses.forall(erasedToObjectTypes.contains)
+      }
+
       def findIssues(param: Symbol): Option[SharedCompileTimeMessages.TemporalMethodParameterIssue] = {
         param.tree match {
           case vd: ValDef =>
             val t = vd.tpt.tpe
-            if (t =:= TypeRepr.of[Any] || t =:= TypeRepr.of[java.lang.Object])
-              Some(SharedCompileTimeMessages.TemporalMethodParameterIssue.isJavaLangObject(param.name.toString))
-            /*only if all base classes are "primitive"*/
-            else if (t.baseClasses.forall(lowestBaseTypes.contains)) {
-              Some(
-                SharedCompileTimeMessages.TemporalMethodParameterIssue.erasedToJavaLangObject(
-                  name = param.name.toString,
-                  tpe = t.show
+
+            def findIssue(t: TypeRepr): Option[SharedCompileTimeMessages.TemporalMethodParameterIssue] = {
+              // Check if the type IS java.lang.Object or Any directly
+              if (t =:= TypeRepr.of[Any] || t =:= TypeRepr.of[java.lang.Object]) {
+                Some(SharedCompileTimeMessages.TemporalMethodParameterIssue.isJavaLangObject(param.name.toString))
+              } else if (wouldBeErasedToObject(t)) {
+                Some(
+                  SharedCompileTimeMessages.TemporalMethodParameterIssue.erasedToJavaLangObject(
+                    name = param.name.toString,
+                    tpe = t.show
+                  )
                 )
-              )
-            } else {
-              None
+              } else None
+            }
+
+            getNonNullTypeFromUnion(t) match {
+              case Some(t0) => findIssue(t0) // Union type with Null, aka `T0 | Null`
+              case None     => findIssue(t)  // Not a union with Null
             }
           case other =>
             // The whole check is a warning, better not to fail the compilation
