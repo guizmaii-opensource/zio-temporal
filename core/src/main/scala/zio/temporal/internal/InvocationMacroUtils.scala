@@ -146,18 +146,18 @@ class InvocationMacroUtils[Q <: Quotes](using override val q: Q) extends MacroUt
 
             if (isUnionWithNull(t)) { // Handling for union types with Null (e.g., A | Null)
               val nonNullType = unsafeGetNonNullTypeFromUnion(t)
-              
+
               // Try multiple ways to get the underlying type:
               // 1. Full dealiasing for type aliases
               // 2. Widen for refined types and opaque types
               val dealiasedType = fullyDealias(nonNullType)
-              val widenedType = dealiasedType.widen
+              val widenedType   = dealiasedType.widen
 
               // Collect base classes from both dealiased and widened types
               // This handles both regular types and opaque types
               val baseClassesDealiased = dealiasedType.baseClasses
-              val baseClassesWidened = widenedType.baseClasses
-              val allBaseClasses = (baseClassesDealiased ++ baseClassesWidened).distinct
+              val baseClassesWidened   = widenedType.baseClasses
+              val allBaseClasses       = (baseClassesDealiased ++ baseClassesWidened).distinct
 
               // If all base classes are top-level types (Object/Any/Matchable), it would be erased to Object
               if (allBaseClasses.forall(erasedToObjectTypes.contains)) {

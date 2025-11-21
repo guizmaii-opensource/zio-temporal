@@ -62,7 +62,7 @@ trait IntOrNullWorkflow {
 class IntOrNullWorkflowImpl extends IntOrNullWorkflow {
   override def processWithIntOrNull(value: Int | Null): Int = {
     value match {
-      case null => -1
+      case null              => -1
       case nonNullValue: Int => nonNullValue
     }
   }
