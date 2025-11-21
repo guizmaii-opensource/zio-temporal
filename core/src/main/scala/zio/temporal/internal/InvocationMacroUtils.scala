@@ -114,13 +114,21 @@ class InvocationMacroUtils[Q <: Quotes](using override val q: Q) extends MacroUt
     )
 
     def warnPossibleSerializationIssues(): Unit = {
-      def getNonNullTypeFromUnion(t: TypeRepr): Option[TypeRepr] =
+      def isUnionWithNull(t: TypeRepr): Boolean =
         t.dealias match {
           case OrType(left, right) =>
-            if (left =:= TypeRepr.of[Null]) Some(right)
-            else if (right =:= TypeRepr.of[Null]) Some(left)
-            else None
-          case _ => None
+            // Check if this is a union type with Null
+            (left =:= TypeRepr.of[Null]) || (right =:= TypeRepr.of[Null])
+          case _ => false
+        }
+
+      def unsafeGetNonNullTypeFromUnion(t: TypeRepr): TypeRepr =
+        t.dealias match {
+          case OrType(left, right) =>
+            if (left =:= TypeRepr.of[Null]) right
+            else if (right =:= TypeRepr.of[Null]) left
+            else sys.error("Type is not a union with Null")
+          case _ => sys.error("Type is not a union with Null")
         }
 
       // Recursively dealias to handle nested type aliases and newtypes
@@ -131,35 +139,28 @@ class InvocationMacroUtils[Q <: Quotes](using override val q: Q) extends MacroUt
         else fullyDealias(dealiased)
       }
 
-      // Check if a type would be erased to Object at runtime
-      // Returns true if the type would be erased, but does NOT include exact Any/Object types
-      def wouldBeErasedToObject(t: TypeRepr): Boolean = {
-        // Try multiple ways to get the underlying type:
-        // 1. Full dealiasing for type aliases
-        // 2. Widen for refined types and opaque types
-        val dealiasedType = fullyDealias(t)
-        val widenedType   = dealiasedType.widen
-
-        // Collect base classes from both dealiased and widened types
-        // This handles both regular types and opaque types
-        val baseClassesDealiased = dealiasedType.baseClasses
-        val baseClassesWidened   = widenedType.baseClasses
-        val allBaseClasses       = (baseClassesDealiased ++ baseClassesWidened).distinct
-
-        // If all base classes are top-level types (Object/Any/Matchable), it would be erased to Object
-        allBaseClasses.forall(erasedToObjectTypes.contains)
-      }
-
       def findIssues(param: Symbol): Option[SharedCompileTimeMessages.TemporalMethodParameterIssue] = {
         param.tree match {
           case vd: ValDef =>
             val t = vd.tpt.tpe
 
-            def findIssue(t: TypeRepr): Option[SharedCompileTimeMessages.TemporalMethodParameterIssue] = {
-              // Check if the type IS java.lang.Object or Any directly
-              if (t =:= TypeRepr.of[Any] || t =:= TypeRepr.of[java.lang.Object]) {
-                Some(SharedCompileTimeMessages.TemporalMethodParameterIssue.isJavaLangObject(param.name.toString))
-              } else if (wouldBeErasedToObject(t)) {
+            if (isUnionWithNull(t)) { // Handling for union types with Null (e.g., A | Null)
+              val nonNullType = unsafeGetNonNullTypeFromUnion(t)
+              
+              // Try multiple ways to get the underlying type:
+              // 1. Full dealiasing for type aliases
+              // 2. Widen for refined types and opaque types
+              val dealiasedType = fullyDealias(nonNullType)
+              val widenedType = dealiasedType.widen
+
+              // Collect base classes from both dealiased and widened types
+              // This handles both regular types and opaque types
+              val baseClassesDealiased = dealiasedType.baseClasses
+              val baseClassesWidened = widenedType.baseClasses
+              val allBaseClasses = (baseClassesDealiased ++ baseClassesWidened).distinct
+
+              // If all base classes are top-level types (Object/Any/Matchable), it would be erased to Object
+              if (allBaseClasses.forall(erasedToObjectTypes.contains)) {
                 Some(
                   SharedCompileTimeMessages.TemporalMethodParameterIssue.erasedToJavaLangObject(
                     name = param.name.toString,
@@ -167,12 +168,16 @@ class InvocationMacroUtils[Q <: Quotes](using override val q: Q) extends MacroUt
                   )
                 )
               } else None
-            }
-
-            getNonNullTypeFromUnion(t) match {
-              case Some(t0) => findIssue(t0) // Union type with Null, aka `T0 | Null`
-              case None     => findIssue(t)  // Not a union with Null
-            }
+            } else if (t =:= TypeRepr.of[Any] || t =:= TypeRepr.of[java.lang.Object]) {
+              Some(SharedCompileTimeMessages.TemporalMethodParameterIssue.isJavaLangObject(param.name.toString))
+            } else if (t.baseClasses.forall(erasedToObjectTypes.contains)) {
+              Some(
+                SharedCompileTimeMessages.TemporalMethodParameterIssue.erasedToJavaLangObject(
+                  name = param.name.toString,
+                  tpe = t.show
+                )
+              )
+            } else None
           case other =>
             // The whole check is a warning, better not to fail the compilation
             warning(
