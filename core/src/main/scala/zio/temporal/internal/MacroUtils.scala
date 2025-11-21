@@ -30,13 +30,14 @@ class MacroUtils[Q <: Quotes](using val q: Q) {
       .exists(m => m.isClassConstructor && m.paramSymss.flatten.isEmpty && nonPublicFlags.forall(!m.flags.is(_)))
   }
 
-  extension [A](self: Expr[A])
+  extension [A](self: Expr[A]) {
     def debugged(msg: String): Expr[A] = {
       if (debugEnabled) {
         report.info(s"$msg tree=${self.show}")
       }
       self
     }
+  }
 
   private lazy val debugEnabled: Boolean =
     sys.props
