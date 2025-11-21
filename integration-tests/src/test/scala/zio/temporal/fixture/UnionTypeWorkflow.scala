@@ -23,31 +23,32 @@ class StringOrNullWorkflowImpl extends StringOrNullWorkflow {
   override def getLastValue: String | Null = lastValue
 }
 
-// Type alias | Null workflow
-object TypeAliasWorkflow {
-  // Type alias for testing, similar to TenantId from zio-prelude Subtype
-  // This simulates: type TenantId = TenantId.Type where TenantId.Type is String
-  type TestId = String
-  object TestId {
-    def apply(value: String): TestId = value
-    def unwrap(id: TestId): String = id
-  }
+// Newtype | Null workflow - using real zio-prelude Subtype
+object NewtypeWorkflow {
+  import zio.prelude.Subtype
+
+  // Real zio-prelude newtype
+  type TestId = TestId.Type
+  object TestId extends Subtype[String]
 }
 
 @workflowInterface
-trait TypeAliasWorkflow {
-  import TypeAliasWorkflow._
+trait NewtypeWorkflow {
+  import NewtypeWorkflow._
 
   @workflowMethod
-  def processWithTypeAliasOrNull(value: TestId | Null): String
+  def processWithNewtypeOrNull(value: TestId | Null): String
 }
 
-class TypeAliasWorkflowImpl extends TypeAliasWorkflow {
-  import TypeAliasWorkflow._
+class NewtypeWorkflowImpl extends NewtypeWorkflow {
+  import NewtypeWorkflow._
 
-  override def processWithTypeAliasOrNull(value: TestId | Null): String = {
-    if (value == null) "null-alias"
-    else s"alias-value: ${TestId.unwrap(value)}"
+  override def processWithNewtypeOrNull(value: TestId | Null): String = {
+    value match {
+      case null                 => "null-newtype"
+      case nonNullValue: TestId => s"newtype-value: ${TestId.unwrap(nonNullValue)}"
+      case _                    => sys.error("unexpected case")
+    }
   }
 }
 

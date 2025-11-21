@@ -25,6 +25,7 @@ object BuildConfig extends Dependencies {
     Zio.test,
     Zio.testSbt,
     Zio.testMagnolia,
+    Zio.prelude,
     Logging.zio,
     Logging.zioSlf4j,
     Logging.logback,
@@ -55,6 +56,7 @@ trait Dependencies {
     val temporal   = "1.32.0"
     val zio        = "2.1.22"
     val zioLogging = "2.5.1"
+    val zioPrelude = "1.0.0-RC35"
     val enumeratum = "1.9.0"
     val jackson    = "2.20.1"
     val otel       = "1.56.0"
@@ -78,6 +80,7 @@ trait Dependencies {
     val test           = "dev.zio" %% "zio-test"          % versions.zio
     val testSbt        = "dev.zio" %% "zio-test-sbt"      % versions.zio
     val testMagnolia   = "dev.zio" %% "zio-test-magnolia" % versions.zio
+    val prelude        = "dev.zio" %% "zio-prelude"       % versions.zioPrelude
     val testFrameworks = Seq(new TestFramework("zio.test.sbt.ZTestFramework"))
 
     // only for examples

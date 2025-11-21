@@ -30,24 +30,24 @@ object UnionTypeWorkflowSpec extends BaseTemporalSpec {
         result <- ZWorkflowStub.execute(workflow.processWithStringOrNull("test"))
       } yield assertTrue(result == "string-value: test")
     }.provideTestWorkflowEnv,
-    test("workflow method accepts type alias | Null parameter with non-null value") {
-      import TypeAliasWorkflow._
-      val taskQueue = "union-alias-queue"
+    test("workflow method accepts newtype | Null parameter with non-null value") {
+      import NewtypeWorkflow._
+      val taskQueue = "union-newtype-queue"
 
       for {
         workflowId <- ZIO.randomWith(_.nextUUID)
         _          <- ZTestWorkflowEnvironment.newWorker(taskQueue) @@
-               ZWorker.addWorkflow[TypeAliasWorkflowImpl].fromClass
+               ZWorker.addWorkflow[NewtypeWorkflowImpl].fromClass
         _        <- ZTestWorkflowEnvironment.setup()
-        workflow <- ZTestWorkflowEnvironment.newWorkflowStub[TypeAliasWorkflow](
+        workflow <- ZTestWorkflowEnvironment.newWorkflowStub[NewtypeWorkflow](
                       ZWorkflowOptions
                         .withWorkflowId(workflowId.toString)
                         .withTaskQueue(taskQueue)
                         .withWorkflowRunTimeout(10.second)
                     )
         testId = TestId("tenant-123")
-        result <- ZWorkflowStub.execute(workflow.processWithTypeAliasOrNull(testId))
-      } yield assertTrue(result == "alias-value: tenant-123")
+        result <- ZWorkflowStub.execute(workflow.processWithNewtypeOrNull(testId))
+      } yield assertTrue(result == "newtype-value: tenant-123")
     }.provideTestWorkflowEnv,
     test("workflow method accepts Int | Null parameter with non-null value") {
       val taskQueue = "union-int-queue"
