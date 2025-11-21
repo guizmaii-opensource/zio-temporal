@@ -17,11 +17,6 @@ object BuildConfig extends Dependencies {
     Testing.scalatest
   )
 
-  val coreLibsScala2 = Seq(
-    Utility.collectionsCompat,
-    Enumeratum.enumeratum % Optional
-  )
-
   val testkitLibs = baseLibs ++ Seq(
     Temporal.testing
   )
@@ -36,18 +31,10 @@ object BuildConfig extends Dependencies {
     Testing.scalatest
   ).map(_ % Test)
 
-  val testLibsScala2 = Seq(
-    Enumeratum.enumeratum % Test
-  )
-
   val protobufLibs = baseLibs ++ Seq(
     Scalapb.runtime,
     Scalapb.runtimeProtobuf,
     Testing.scalatest
-  )
-
-  val protobufScala2Libs = Seq(
-    Enumeratum.enumeratum % Optional
   )
 
   val examplesLibs = baseLibs ++ Seq(
@@ -59,10 +46,7 @@ object BuildConfig extends Dependencies {
     Monitoring.micrometerOtlp
   ) ++ Monitoring.otel
 
-  val docsLibs = baseLibs ++ examplesLibs ++ Seq(
-    Zio.test,
-    Enumeratum.enumeratum
-  )
+  val docsLibs = baseLibs ++ examplesLibs ++ Seq(Zio.test)
 }
 
 trait Dependencies {
@@ -76,16 +60,10 @@ trait Dependencies {
     val otel       = "1.56.0"
   }
 
-  object org {
-    val beachape = "com.beachape"
-    val zio      = "dev.zio"
-    val temporal = "io.temporal"
-  }
-
   object Temporal {
-    val self        = org.temporal % "temporal-sdk"         % versions.temporal
-    val testing     = org.temporal % "temporal-testing"     % versions.temporal
-    val openTracing = org.temporal % "temporal-opentracing" % versions.temporal
+    val self        = "io.temporal" % "temporal-sdk"         % versions.temporal
+    val testing     = "io.temporal" % "temporal-testing"     % versions.temporal
+    val openTracing = "io.temporal" % "temporal-opentracing" % versions.temporal
   }
 
   object Jackson {
@@ -95,19 +73,15 @@ trait Dependencies {
   }
 
   object Zio {
-    val self           = org.zio %% "zio"               % versions.zio
-    val streams        = org.zio %% "zio-streams"       % versions.zio
-    val test           = org.zio %% "zio-test"          % versions.zio
-    val testSbt        = org.zio %% "zio-test-sbt"      % versions.zio
-    val testMagnolia   = org.zio %% "zio-test-magnolia" % versions.zio
+    val self           = "dev.zio" %% "zio"               % versions.zio
+    val streams        = "dev.zio" %% "zio-streams"       % versions.zio
+    val test           = "dev.zio" %% "zio-test"          % versions.zio
+    val testSbt        = "dev.zio" %% "zio-test-sbt"      % versions.zio
+    val testMagnolia   = "dev.zio" %% "zio-test-magnolia" % versions.zio
     val testFrameworks = Seq(new TestFramework("zio.test.sbt.ZTestFramework"))
 
     // only for examples
-    val cli = org.zio %% "zio-cli" % "0.7.4"
-  }
-
-  object Enumeratum {
-    val enumeratum = org.beachape %% "enumeratum" % versions.enumeratum
+    val cli = "dev.zio" %% "zio-cli" % "0.7.4"
   }
 
   object Scalapb {
@@ -120,15 +94,9 @@ trait Dependencies {
     val collectionsCompat = "org.scala-lang.modules" %% "scala-collection-compat" % "2.14.0"
   }
 
-  object ScalaReflect {
-    val macros = Def.setting {
-      "org.scala-lang" % "scala-reflect" % scalaVersion.value % Provided
-    }
-  }
-
   object Logging {
-    val zio      = org.zio         %% "zio-logging"       % versions.zioLogging
-    val zioSlf4j = org.zio         %% "zio-logging-slf4j" % versions.zioLogging
+    val zio      = "dev.zio"       %% "zio-logging"       % versions.zioLogging
+    val zioSlf4j = "dev.zio"       %% "zio-logging-slf4j" % versions.zioLogging
     val logback  = "ch.qos.logback" % "logback-classic"   % "1.5.21"
   }
 
