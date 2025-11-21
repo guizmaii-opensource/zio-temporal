@@ -1,13 +1,10 @@
 import BuildConfig.*
 
+import scala.collection.Seq
+
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
-val scala212 = "2.12.20"
-val scala213 = "2.13.17"
-val scala3   = "3.3.7"
-
-val allScalaVersions          = List(scala212, scala213, scala3)
-val documentationScalaVersion = scala213
+val scala3 = "3.3.7"
 
 ThisBuild / organization  := "com.guizmaii"
 ThisBuild / versionScheme := Some("early-semver")
@@ -46,38 +43,16 @@ lazy val coverageSettings = Seq(
 )
 
 lazy val baseProjectSettings = Seq(
-  scalaVersion       := scala213,
-  crossScalaVersions := allScalaVersions,
-  scalacOptions ++= {
-    val baseOptions = Seq(
-      "-language:implicitConversions",
-      "-language:higherKinds",
-      "-deprecation"
-    )
-    val crossVersionOptions = CrossVersion.partialVersion(scalaVersion.value) match {
-      case Some((2, y)) if y < 13 => Seq("-Ypartial-unification")
-      case _                      => Seq.empty[String]
-    }
-    baseOptions ++ crossVersionOptions
-  }
+  scalaVersion       := scala3,
+  crossScalaVersions := List(scala3),
+  scalacOptions ++= Seq(
+    "-language:implicitConversions",
+    "-language:higherKinds",
+    "-deprecation"
+  ),
+  scalacOptions ++= Seq("-no-indent"),             // See https://x.com/ghostdogpr/status/1706589471469425074
+  scalacOptions ++= Seq("-language:noAutoTupling") // See https://github.com/scala/scala3/discussions/19255
 )
-
-val crossCompileSettings: Seq[Def.Setting[_]] = {
-  def crossVersionSetting(config: Configuration) =
-    (config / unmanagedSourceDirectories) ++= {
-      val sourceDir = (config / sourceDirectory).value
-      CrossVersion.partialVersion(scalaVersion.value) match {
-        case Some((3, _))            => List(sourceDir / "scala-3")
-        case Some((2, n)) if n >= 13 => List(sourceDir / "scala-2", sourceDir / "scala-2.13+")
-        case _                       => List(sourceDir / "scala-2", sourceDir / "scala-2.13-")
-      }
-    }
-
-  Seq(
-    crossVersionSetting(Compile),
-    crossVersionSetting(Test)
-  )
-}
 
 val baseSettings    = baseProjectSettings ++ coverageSettings
 val baseLibSettings = baseSettings ++ publishSettings
@@ -90,16 +65,13 @@ lazy val root = project
   ) // https://www.scala-sbt.org/1.x/docs/Cross-Build.html#Cross+building+a+project+statefully,
   .settings(
     name         := "zio-temporal-root",
-    scalaVersion := scala213
+    scalaVersion := scala3
   )
   .aggregate(
-    core.projectRefs ++
-      testkit.projectRefs ++
-      protobuf.projectRefs ++
-      `integration-tests`.projectRefs ++
-      examples.projectRefs: _*
-  )
-  .aggregate(
+    core,
+    testkit,
+    protobuf,
+    `integration-tests`,
     docs
   )
   .enablePlugins(ScalaUnidocPlugin)
@@ -111,32 +83,23 @@ lazy val docs = project
     baseSettings,
     mdocSettings,
     noPublishSettings,
-    scalaVersion := scala213,
+    scalaVersion := scala3,
     libraryDependencies ++= docsLibs
   )
   .dependsOn(
-    core.jvm(scala213),
-    protobuf.jvm(scala213),
-    testkit.jvm(scala213)
+    core,
+    protobuf,
+    testkit
   )
   .enablePlugins(MdocPlugin, DocusaurusPlugin)
 
-lazy val core = projectMatrix
+lazy val core = project
   .in(file("core"))
   .settings(baseLibSettings)
-  .settings(crossCompileSettings)
   .enablePlugins(BuildInfoPlugin)
   .settings(
     name := "zio-temporal-core",
-    libraryDependencies ++= coreLibs ++ {
-      CrossVersion.partialVersion(scalaVersion.value) match {
-        case Some((2, _)) =>
-          Seq(
-            ScalaReflect.macros.value
-          ) ++ coreLibsScala2
-        case _ => Nil
-      }
-    },
+    libraryDependencies ++= coreLibs,
     buildInfoKeys := Seq[BuildInfoKey](
       organization,
       BuildInfoKey.map(name) { case (k, _) => k -> "zio-temporal" },
@@ -147,34 +110,26 @@ lazy val core = projectMatrix
     buildInfoOptions += BuildInfoOption.ToMap,
     buildInfoPackage := "zio.temporal.build"
   )
-  .jvmPlatform(scalaVersions = allScalaVersions)
 
-lazy val testkit = projectMatrix
+lazy val testkit = project
   .in(file("testkit"))
   .dependsOn(core)
   .settings(baseLibSettings)
-  .settings(crossCompileSettings)
   .settings(
     name := "zio-temporal-testkit",
     libraryDependencies ++= testkitLibs
   )
-  .jvmPlatform(scalaVersions = allScalaVersions)
 
-lazy val `integration-tests` = projectMatrix
+lazy val `integration-tests` = project
   .in(file("integration-tests"))
   .dependsOn(
     core,
     testkit % "compile->compile;test->test",
     protobuf
   )
-  .settings(baseSettings, noPublishSettings, crossCompileSettings)
+  .settings(baseSettings, noPublishSettings)
   .settings(
-    libraryDependencies ++= testLibs ++ {
-      CrossVersion.partialVersion(scalaVersion.value) match {
-        case Some((2, _)) => testLibsScala2
-        case _            => Nil
-      }
-    },
+    libraryDependencies ++= testLibs,
     testFrameworks ++= Zio.testFrameworks,
     (Test / parallelExecution) := false,
     Compile / PB.targets       := Seq(
@@ -184,21 +139,14 @@ lazy val `integration-tests` = projectMatrix
       ) -> (Compile / sourceManaged).value / "scalapb"
     )
   )
-  .jvmPlatform(scalaVersions = allScalaVersions)
 
-lazy val protobuf = projectMatrix
+lazy val protobuf = project
   .in(file("protobuf"))
   .settings(baseLibSettings)
   .dependsOn(core)
-  .settings(crossCompileSettings)
   .settings(
     name := "zio-temporal-protobuf",
-    libraryDependencies ++= protobufLibs ++ {
-      CrossVersion.partialVersion(scalaVersion.value) match {
-        case Some((2, _)) => protobufScala2Libs
-        case _            => Nil
-      }
-    },
+    libraryDependencies ++= protobufLibs,
     Compile / PB.targets := Seq(
       scalapb.gen(
         flatPackage = true,
@@ -206,9 +154,8 @@ lazy val protobuf = projectMatrix
       ) -> (Compile / sourceManaged).value / "scalapb"
     )
   )
-  .jvmPlatform(scalaVersions = allScalaVersions)
 
-lazy val examples = projectMatrix
+lazy val examples = project
   .in(file("examples"))
   .settings(baseSettings, noPublishSettings)
   .settings(
@@ -226,7 +173,6 @@ lazy val examples = projectMatrix
     testkit,
     protobuf
   )
-  .jvmPlatform(scalaVersions = allScalaVersions)
 
 // MDOC
 lazy val mdocSettings = Seq(
@@ -241,12 +187,8 @@ lazy val mdocSettings = Seq(
 
 lazy val unidocSettings = Seq(
   cleanFiles += (ScalaUnidoc / unidoc / target).value,
-  ScalaUnidoc / unidoc / unidocProjectFilter := inProjects(
-    core.jvm(scala213),
-    protobuf.jvm(scala213),
-    testkit.jvm(scala213)
-  ),
-  ScalaUnidoc / unidoc / target := (LocalRootProject / baseDirectory).value / "website" / "static" / "api",
+  ScalaUnidoc / unidoc / unidocProjectFilter := inProjects(core, protobuf, testkit),
+  ScalaUnidoc / unidoc / target              := (LocalRootProject / baseDirectory).value / "website" / "static" / "api",
   ScalaUnidoc / unidoc / scalacOptions ++= Seq(
     "-sourcepath",
     (LocalRootProject / baseDirectory).value.getAbsolutePath,

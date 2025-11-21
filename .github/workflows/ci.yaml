@@ -32,7 +32,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        java: [ '11', '17', '21' ]
+        java: [ '17', '21', '25' ]
     steps:
       - uses: actions/checkout@v4
       - uses: sbt/setup-sbt@v1
