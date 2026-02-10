@@ -56,7 +56,7 @@ trait Dependencies {
     val temporal   = "1.32.1"
     val zio        = "2.1.24"
     val zioLogging = "2.5.3"
-    val zioPrelude = "1.0.0-RC45"
+    val zioPrelude = "1.0.0-RC46"
     val enumeratum = "1.9.0"
     val jackson    = "2.21.0"
     val otel       = "1.59.0"
