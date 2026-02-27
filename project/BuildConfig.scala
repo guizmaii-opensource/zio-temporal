@@ -53,7 +53,7 @@ object BuildConfig extends Dependencies {
 trait Dependencies {
 
   private object versions {
-    val temporal   = "1.32.1"
+    val temporal   = "1.33.0"
     val zio        = "2.1.24"
     val zioLogging = "2.5.3"
     val zioPrelude = "1.0.0-RC46"
@@ -84,7 +84,7 @@ trait Dependencies {
     val testFrameworks = Seq(new TestFramework("zio.test.sbt.ZTestFramework"))
 
     // only for examples
-    val cli = "dev.zio" %% "zio-cli" % "0.7.5"
+    val cli = "dev.zio" %% "zio-cli" % "0.8.0"
   }
 
   object Scalapb {
@@ -112,7 +112,7 @@ trait Dependencies {
     val otelExporterOtlp     = "io.opentelemetry"         % "opentelemetry-exporter-otlp"               % versions.otel
     val otelTracePropagators = "io.opentelemetry"         % "opentelemetry-extension-trace-propagators" % versions.otel
     val otelOpentracingShim  = "io.opentelemetry"         % "opentelemetry-opentracing-shim"            % versions.otel
-    val otelSemvonc          = "io.opentelemetry.semconv" % "opentelemetry-semconv"                     % "1.39.0"
+    val otelSemvonc          = "io.opentelemetry.semconv" % "opentelemetry-semconv"                     % "1.40.0"
 
     val otel = Seq(otelApi, otelExporterOtlp, otelTracePropagators, otelOpentracingShim, otelSemvonc)
 
