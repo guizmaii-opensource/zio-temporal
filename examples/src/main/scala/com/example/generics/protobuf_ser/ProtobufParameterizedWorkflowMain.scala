@@ -3,6 +3,7 @@ package com.example.generics.protobuf_ser
 import zio._
 import zio.logging.backend.SLF4J
 import zio.temporal._
+import zio.temporal.json.CodecRegistry
 import zio.temporal.protobuf.ProtobufDataConverter
 import zio.temporal.worker._
 import zio.temporal.workflow._
@@ -174,7 +175,7 @@ object ProtobufParameterizedWorkflowMain extends ZIOAppDefault {
         // options
         ZWorkflowServiceStubsOptions.make,
         ZWorkflowClientOptions.make @@
-          ZWorkflowClientOptions.withDataConverter(ProtobufDataConverter.make()),
+          ZWorkflowClientOptions.withDataConverter(ProtobufDataConverter.make(new CodecRegistry)),
         ZWorkerFactoryOptions.make
       )
   }

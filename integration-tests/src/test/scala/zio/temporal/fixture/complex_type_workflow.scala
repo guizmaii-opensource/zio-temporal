@@ -1,6 +1,7 @@
 package zio.temporal.fixture
 
 import zio._
+import zio.json.{DeriveJsonDecoder, DeriveJsonEncoder, JsonDecoder, JsonEncoder}
 import zio.temporal._
 import zio.temporal.activity._
 import zio.temporal.state.ZWorkflowState
@@ -10,8 +11,18 @@ import java.util.UUID
 import scala.concurrent.TimeoutException
 
 case class Foo(bar: String)
+object Foo {
+  implicit val encoder: JsonEncoder[Foo] = DeriveJsonEncoder.gen[Foo]
+  implicit val decoder: JsonDecoder[Foo] = DeriveJsonDecoder.gen[Foo]
+}
 
 case class Triple[A, B, C](first: A, second: B, third: C)
+object Triple {
+  implicit def encoder[A: JsonEncoder, B: JsonEncoder, C: JsonEncoder]: JsonEncoder[Triple[A, B, C]] =
+    DeriveJsonEncoder.gen[Triple[A, B, C]]
+  implicit def decoder[A: JsonDecoder, B: JsonDecoder, C: JsonDecoder]: JsonDecoder[Triple[A, B, C]] =
+    DeriveJsonDecoder.gen[Triple[A, B, C]]
+}
 
 @activityInterface
 trait ComplexTypesActivity {
