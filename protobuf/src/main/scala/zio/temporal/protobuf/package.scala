@@ -45,6 +45,7 @@ package object protobuf {
   implicit def scalapbMessageZTemporalCodec[A <: GeneratedMessage](implicit ct: ClassTag[A]): ZTemporalCodec[A] =
     ZTemporalCodec.make(passthroughEncoder[A], passthroughDecoder[A])
 
-  implicit def scalapbSealedOneofZTemporalCodec[A <: GeneratedSealedOneof](implicit ct: ClassTag[A]): ZTemporalCodec[A] =
+  implicit def scalapbSealedOneofZTemporalCodec[A <: GeneratedSealedOneof](implicit ct: ClassTag[A])
+    : ZTemporalCodec[A] =
     ZTemporalCodec.make(passthroughEncoder[A], passthroughDecoder[A])
 }

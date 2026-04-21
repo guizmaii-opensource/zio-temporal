@@ -7,8 +7,8 @@ import scala.reflect.ClassTag
 
 /** Opt-in zio-json encoder/decoder bridges for ScalaPB-generated types.
   *
-  * These are needed only when you want zio-json to derive a codec for a generic structure that contains a protobuf
-  * type — e.g. `JsonEncoder[Either[MyProtobufMsg, String]]`. Importing this object brings `JsonEncoder[A <:
+  * These are needed only when you want zio-json to derive a codec for a generic structure that contains a protobuf type
+  * — e.g. `JsonEncoder[Either[MyProtobufMsg, String]]`. Importing this object brings `JsonEncoder[A <:
   * GeneratedMessage]` and `JsonDecoder[A <: GeneratedMessage]` (and the sealed-oneof variants) into implicit scope.
   *
   * ''Do not import globally.'' These encoders/decoders are throwing stubs — they are meant to live inside a
