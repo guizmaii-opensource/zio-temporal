@@ -13,14 +13,14 @@ import scala.reflect.ClassTag
   * interaction is performed. This replaces the previous Jackson-based runtime reflection, which silently emitted
   * malformed JSON when Scala-aware modules were not registered.
   *
-  * Provide a `ZTemporalCodec[A]` by placing implicit `JsonEncoder[A]` and `JsonDecoder[A]` (or a `JsonCodec[A]`) in
-  * `A`'s companion object. For case classes and sealed traits, the simplest form is
+  * Provide a `ZTemporalCodec[A]` by placing a given `JsonEncoder[A]` + `JsonDecoder[A]` (or a `JsonCodec[A]`) in `A`'s
+  * companion object. For case classes and sealed traits, the simplest forms are
   *
   * {{{
-  *   final case class Foo(x: Int, y: String)
-  *   object Foo {
-  *     implicit val codec: ZTemporalCodec[Foo] = ZTemporalCodec.derived
-  *   }
+  *   final case class Foo(x: Int, y: String) derives ZTemporalCodec
+  *
+  *   // or, if you'd rather derive zio-json directly and let the bridges pick it up:
+  *   final case class Foo(x: Int, y: String) derives JsonCodec
   * }}}
   *
   * which derives zio-json encoder/decoder and wraps them in a `ZTemporalCodec`.
@@ -34,13 +34,15 @@ import scala.reflect.ClassTag
     "No ZTemporalCodec[${A}] in scope — Temporal needs a zio-json codec to (de)serialize ${A}\n" +
     "across workflow/activity/signal/query boundaries.\n" +
     "\n" +
-    "Provide one, e.g. on ${A}'s companion object:\n" +
+    "The simplest fix for a case class or sealed trait is to derive it:\n" +
     "\n" +
-    "    object ${A} {\n" +
-    "      implicit val codec: ZTemporalCodec[${A}] = ZTemporalCodec.derived\n" +
-    "    }\n" +
+    "    final case class ${A}(...) derives ZTemporalCodec\n" +
     "\n" +
-    "For a type you do not control, place the implicit somewhere that gets imported at the call site.\n"
+    "or, if you prefer to derive the zio-json codec directly:\n" +
+    "\n" +
+    "    final case class ${A}(...) derives JsonCodec\n" +
+    "\n" +
+    "For a type you do not own, place a `given ZTemporalCodec[${A}]` somewhere imported at the call site.\n"
 )
 trait ZTemporalCodec[A] {
 
@@ -88,10 +90,10 @@ object ZTemporalCodec extends LowPriorityZTemporalCodecInstances0 with LowPriori
     * (activities returning unit, signals with no payload, etc.). Serialized as an empty JSON object `{}`. Accepts any
     * JSON on decode, matching the behaviour of the old Jackson-based `BoxedUnitModule`.
     */
-  implicit val unitCodec: ZTemporalCodec[Unit] = {
-    val encoder: JsonEncoder[Unit]        = JsonEncoder[zio.json.ast.Json].contramap(_ => zio.json.ast.Json.Obj())
-    val decoder: JsonDecoder[Unit]        = JsonDecoder[zio.json.ast.Json].map(_ => ())
-    implicit val classTag: ClassTag[Unit] = ClassTag.Unit
+  given unitCodec: ZTemporalCodec[Unit] = {
+    val encoder: JsonEncoder[Unit] = JsonEncoder[zio.json.ast.Json].contramap(_ => zio.json.ast.Json.Obj())
+    val decoder: JsonDecoder[Unit] = JsonDecoder[zio.json.ast.Json].map(_ => ())
+    given classTag: ClassTag[Unit] = ClassTag.Unit
     new Kind0[Unit](encoder, decoder)
   }
 
@@ -115,7 +117,7 @@ object ZTemporalCodec extends LowPriorityZTemporalCodecInstances0 with LowPriori
   private[json] final class Kind0[A](
     val encoder: JsonEncoder[A],
     val decoder: JsonDecoder[A]
-  )(implicit classTag: ClassTag[A])
+  )(using classTag: ClassTag[A])
       extends ZTemporalCodec[A] {
     val klass: Class[A]   = classTag.runtimeClass.asInstanceOf[Class[A]]
     val genericType: Type = classTag.runtimeClass
