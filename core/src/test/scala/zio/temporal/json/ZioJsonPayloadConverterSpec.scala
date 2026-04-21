@@ -63,7 +63,7 @@ class ZioJsonPayloadConverterSpec extends AnyWordSpec with Matchers {
 
     "fail with DataConverterException when decoding an unregistered type" in {
       val converter = new ZioJsonPayloadConverter(new CodecRegistry())
-      val payload = Payload
+      val payload   = Payload
         .newBuilder()
         .putMetadata("encoding", ByteString.copyFromUtf8("json/zio"))
         .setData(ByteString.copyFromUtf8("""{"id":1,"name":"a"}"""))
@@ -75,7 +75,7 @@ class ZioJsonPayloadConverterSpec extends AnyWordSpec with Matchers {
       val registry = new CodecRegistry()
       registry.register(ZTemporalCodec[User])
       val converter = new ZioJsonPayloadConverter(registry)
-      val payload = Payload
+      val payload   = Payload
         .newBuilder()
         .putMetadata("encoding", ByteString.copyFromUtf8("json/zio"))
         .setData(ByteString.copyFrom("not valid json", StandardCharsets.UTF_8))
