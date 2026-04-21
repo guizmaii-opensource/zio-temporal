@@ -1,6 +1,6 @@
 package zio.temporal.fixture
 
-import zio.temporal.json.CodecRegistry
+import zio.temporal.json.{CodecRegistry, ZTemporalCodec}
 
 /** Shared [[CodecRegistry]] that pre-registers every `@workflowInterface` / `@activityInterface` defined in the
   * `zio.temporal.fixture` package.
@@ -56,6 +56,14 @@ object FixtureCodecRegistry {
       .addInterface[ZioUntypedActivity]
       .addInterface[ZioWorkflow]
       .addInterface[ZioWorkflowUntyped]
+      // Parameterized-workflow upper bounds: `SodaWorkflow extends ParameterizedWorkflow[Soda]` inherits a method
+      // whose signature uses the type parameter `Input`. At runtime, the Temporal Java SDK's reflection reports
+      // the inherited method's parameter type as the TypeVariable `Input` rather than its resolved argument,
+      // and the raw class as the type's upper bound (`ParameterizedWorkflowInput`). The registry's decode-side
+      // fallback (`fromData`, see ZioJsonPayloadConverter) tries `valueClass` when the `Type` lookup misses, so
+      // we explicitly register the sealed-trait parents here.
+      .register(ZTemporalCodec[ParameterizedWorkflowInput])
+      .register(ZTemporalCodec[ParameterizedChildWorkflowInput])
   // Intentionally excluded: the following fixtures use Scala 3 union-with-null types (`String | Null`,
   // `Int | Null`, `TestId | Null`) to test the erasure-warning machinery. They are not meant to
   // round-trip serialize — zio-json can't derive a codec for a union type (no `Mirror.Of` for unions)

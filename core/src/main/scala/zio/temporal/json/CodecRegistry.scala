@@ -42,9 +42,31 @@ final class CodecRegistry {
   def register[A](codec: ZTemporalCodec[A]): this.type = {
     if (codec.genericType == codec.klass) {
       byClass.put(codec.klass, (codec.encoder, codec.decoder))
+      // Also index the boxed counterpart for primitive classes — Java erases Scala `Int`/`Long`/... to
+      // `int.class`/`long.class`/... at the `ClassTag` level, but any value that actually reaches the
+      // `DataConverter.toPayload(Object)` call site is boxed (`classOf[Integer]`, `classOf[Long]`, ...).
+      // Without this, `encoderForClass(classOf[Integer])` misses the `Int` codec entirely.
+      boxedOf(codec.klass) match {
+        case null  => ()
+        case boxed => byClass.put(boxed, (codec.encoder, codec.decoder))
+      }
     }
     byType.put(codec.genericType, (codec.encoder, codec.decoder))
     this
+  }
+
+  /** Returns the boxed wrapper class for a Scala/Java primitive class, or `null` if `cls` isn't primitive. */
+  private def boxedOf(cls: Class[_]): Class[_] | Null = {
+    if (cls eq java.lang.Integer.TYPE) classOf[java.lang.Integer]
+    else if (cls eq java.lang.Long.TYPE) classOf[java.lang.Long]
+    else if (cls eq java.lang.Boolean.TYPE) classOf[java.lang.Boolean]
+    else if (cls eq java.lang.Double.TYPE) classOf[java.lang.Double]
+    else if (cls eq java.lang.Float.TYPE) classOf[java.lang.Float]
+    else if (cls eq java.lang.Short.TYPE) classOf[java.lang.Short]
+    else if (cls eq java.lang.Byte.TYPE) classOf[java.lang.Byte]
+    else if (cls eq java.lang.Character.TYPE) classOf[java.lang.Character]
+    else if (cls eq java.lang.Void.TYPE) classOf[java.lang.Void]
+    else null
   }
 
   /** Look up an encoder by the value's runtime class. Returns `null` for "not found" to avoid allocating an `Option` on
