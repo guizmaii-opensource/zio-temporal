@@ -9,7 +9,7 @@ import io.temporal.common.converter.EncodingKeys
 import org.scalatest.{Assertion, OptionValues}
 import zio.json.{DeriveJsonDecoder, DeriveJsonEncoder, JsonDecoder, JsonEncoder}
 import zio.temporal.json.ZTemporalCodec
-import zio.temporal.protobuf.ScalapbJsonImplicits._
+import zio.temporal.protobuf.ScalapbJsonImplicits.given
 import java.nio.charset.StandardCharsets
 import scala.concurrent.{Future, Await}
 import scala.concurrent.duration._
@@ -17,7 +17,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.jdk.OptionConverters._
 
 object ScalapbPayloadConverterSpec {
-  case class TemporaryClass(value: Int)
+  final case class TemporaryClass(value: Int)
   object TemporaryClass {
     given JsonEncoder[TemporaryClass] = DeriveJsonEncoder.gen[TemporaryClass]
     given JsonDecoder[TemporaryClass] = DeriveJsonDecoder.gen[TemporaryClass]

@@ -25,16 +25,16 @@ import scala.reflect.ClassTag
   */
 package object protobuf {
 
-  private[protobuf] def passthroughMessage[A](implicit ct: ClassTag[A]): String =
+  private[protobuf] def passthroughMessage[A](using ct: ClassTag[A]): String =
     s"JsonEncoder/JsonDecoder for protobuf type ${ct.runtimeClass.getName} should not be invoked — " +
       "ScalapbPayloadConverter handles protobuf types before ZioJsonPayloadConverter in the DataConverter chain."
 
-  private[protobuf] def passthroughEncoder[A](implicit ct: ClassTag[A]): JsonEncoder[A] = {
+  private[protobuf] def passthroughEncoder[A](using ct: ClassTag[A]): JsonEncoder[A] = {
     val msg = passthroughMessage[A]
     JsonEncoder.string.contramap[A](_ => throw new UnsupportedOperationException(msg))
   }
 
-  private[protobuf] def passthroughDecoder[A](implicit ct: ClassTag[A]): JsonDecoder[A] = {
+  private[protobuf] def passthroughDecoder[A](using ct: ClassTag[A]): JsonDecoder[A] = {
     val msg = passthroughMessage[A]
     JsonDecoder.string.mapOrFail[A](_ => Left(msg))
   }
@@ -42,10 +42,9 @@ package object protobuf {
   /** `ZTemporalCodec[A]` for any `GeneratedMessage`. Safe to import globally — the zio-json encoder/decoder the codec
     * carries are internal and never leak into the user's wider implicit scope.
     */
-  implicit def scalapbMessageZTemporalCodec[A <: GeneratedMessage](implicit ct: ClassTag[A]): ZTemporalCodec[A] =
+  given scalapbMessageZTemporalCodec[A <: GeneratedMessage](using ClassTag[A]): ZTemporalCodec[A] =
     ZTemporalCodec.make(passthroughEncoder[A], passthroughDecoder[A])
 
-  implicit def scalapbSealedOneofZTemporalCodec[A <: GeneratedSealedOneof](implicit ct: ClassTag[A])
-    : ZTemporalCodec[A] =
+  given scalapbSealedOneofZTemporalCodec[A <: GeneratedSealedOneof](using ClassTag[A]): ZTemporalCodec[A] =
     ZTemporalCodec.make(passthroughEncoder[A], passthroughDecoder[A])
 }

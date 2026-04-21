@@ -2,7 +2,7 @@ package zio.temporal.json
 
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-import zio.json.{DeriveJsonDecoder, DeriveJsonEncoder, JsonCodec, JsonDecoder, JsonEncoder}
+import zio.json.{DeriveJsonDecoder, DeriveJsonEncoder, JsonCodec, JsonDecoder, JsonEncoder, jsonField, jsonHint}
 
 import java.time.Instant
 import java.util.UUID
@@ -107,6 +107,22 @@ class ZTemporalCodecSpec extends AnyWordSpec with Matchers {
       c.decoder.decodeJson(c.encoder.encodeJson(a, None)) shouldEqual Right(a)
       c.decoder.decodeJson(c.encoder.encodeJson(b, None)) shouldEqual Right(b)
     }
+
+    "respects zio-json field-rename annotations (`@jsonField`) in a derived codec" in {
+      val c = ZTemporalCodec[AnnotatedUser]
+      val v = AnnotatedUser(id = 42, name = "alice")
+      // `@jsonField("user_id")` must rename the field on the wire.
+      c.encoder.encodeJson(v, None).toString shouldEqual """{"user_id":42,"name":"alice"}"""
+      c.decoder.decodeJson("""{"user_id":42,"name":"alice"}""") shouldEqual Right(v)
+    }
+
+    "respects zio-json subtype-rename annotations (`@jsonHint`) in a sealed-trait derived codec" in {
+      val c                       = ZTemporalCodec[AnnotatedEvent]
+      val created: AnnotatedEvent = AnnotatedEvent.Created(42)
+      // `@jsonHint("CREATED")` must rename the outer discriminator key.
+      c.encoder.encodeJson(created, None).toString shouldEqual """{"CREATED":{"id":42}}"""
+      c.decoder.decodeJson("""{"CREATED":{"id":42}}""") shouldEqual Right(created)
+    }
   }
 }
 
@@ -134,4 +150,12 @@ object DerivedShape {
 enum DerivedEnum derives ZTemporalCodec {
   case A(n: Int)
   case B(s: String)
+}
+
+final case class AnnotatedUser(@jsonField("user_id") id: Int, name: String) derives ZTemporalCodec
+
+sealed trait AnnotatedEvent derives ZTemporalCodec
+object AnnotatedEvent {
+  @jsonHint("CREATED") final case class Created(id: Int) extends AnnotatedEvent
+  @jsonHint("DELETED") final case class Deleted(id: Int) extends AnnotatedEvent
 }

@@ -11,8 +11,8 @@ import scala.reflect.ClassTag
 
 sealed trait ChildWorkflowInput derives JsonCodec
 object ChildWorkflowInput {
-  case class Soda(kind: String) extends ChildWorkflowInput derives JsonCodec
-  case class Juice(kind: String, volume: Int) extends ChildWorkflowInput derives JsonCodec
+  final case class Soda(kind: String) extends ChildWorkflowInput derives JsonCodec
+  final case class Juice(kind: String, volume: Int) extends ChildWorkflowInput derives JsonCodec
 }
 
 trait ParameterizedChildWorkflow[Input <: ChildWorkflowInput] {
@@ -22,8 +22,8 @@ trait ParameterizedChildWorkflow[Input <: ChildWorkflowInput] {
 
 sealed trait WorkflowInput derives JsonCodec
 object WorkflowInput {
-  case class Soda(kind: String)  extends WorkflowInput derives JsonCodec
-  case class Juice(kind: String) extends WorkflowInput derives JsonCodec
+  final case class Soda(kind: String)  extends WorkflowInput derives JsonCodec
+  final case class Juice(kind: String) extends WorkflowInput derives JsonCodec
 }
 
 trait ParameterizedWorkflow[Input <: WorkflowInput] {

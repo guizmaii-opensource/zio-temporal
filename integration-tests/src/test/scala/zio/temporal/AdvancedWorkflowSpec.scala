@@ -142,7 +142,7 @@ object AdvancedWorkflowSpec extends BaseTemporalSpec {
       test("run workflow with successful sagas") {
         ZTestWorkflowEnvironment.activityRunOptionsWithZIO[Any] { implicit activityRunOptions =>
           val taskQueue      = "saga-queue"
-          val successFunc    = (_: String, _: BigDecimal) => ZIO.succeed(Done())
+          val successFunc    = (_: String, _: BigDecimal) => ZIO.succeed(Done)
           val expectedResult = BigDecimal(5.0)
 
           for {
@@ -180,13 +180,13 @@ object AdvancedWorkflowSpec extends BaseTemporalSpec {
           val withdrawFunc = (_: String, _: BigDecimal) =>
             ZIO.succeed {
               withdrawn.incrementAndGet()
-              Done()
+              Done
             }
           val depositFunc: (String, BigDecimal) => IO[TransferError, Done] = {
             case (From, _) =>
               ZIO.succeed {
                 compensated.set(true)
-                Done()
+                Done
               }
             case _ =>
               ZIO.fail(error)

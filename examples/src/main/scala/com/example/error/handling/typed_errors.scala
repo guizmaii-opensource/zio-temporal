@@ -8,7 +8,7 @@ import zio.temporal.workflow._
 import zio.temporal.failure._
 
 object SafeMath {
-  case class MathError(error: String)
+  final case class MathError(error: String)
   object MathError {
     given JsonEncoder[MathError] = DeriveJsonEncoder.gen[MathError]
     given JsonDecoder[MathError] = DeriveJsonDecoder.gen[MathError]
@@ -24,7 +24,7 @@ object TypedArithmeticActivityImpl {
     ZLayer.fromFunction(TypedArithmeticActivityImpl()(_: ZActivityRunOptions[Any]))
 }
 
-case class TypedArithmeticActivityImpl()(implicit options: ZActivityRunOptions[Any]) extends ArithmeticActivity {
+final case class TypedArithmeticActivityImpl()(implicit options: ZActivityRunOptions[Any]) extends ArithmeticActivity {
   override def divide(x: Int, y: Int): Int = {
     ZActivity.run {
       for {

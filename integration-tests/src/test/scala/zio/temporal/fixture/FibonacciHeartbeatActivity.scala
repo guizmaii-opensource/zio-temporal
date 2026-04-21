@@ -2,9 +2,9 @@ package zio.temporal.fixture
 
 import io.temporal.client.ActivityCompletionException
 import zio._
-import zio.json.{DeriveJsonDecoder, DeriveJsonEncoder, JsonDecoder, JsonEncoder}
 import zio.temporal._
 import zio.temporal.activity._
+import zio.temporal.json.ZTemporalCodec
 import java.util.concurrent.atomic.AtomicInteger
 
 @activityInterface
@@ -13,11 +13,7 @@ trait FibonacciHeartbeatActivity {
 }
 
 object FibonacciHeartbeatActivityImpl {
-  case class HeartbeatDetails(sum: BigDecimal, curr: Int, prev: Int, step: Int)
-  object HeartbeatDetails {
-    given JsonEncoder[HeartbeatDetails] = DeriveJsonEncoder.gen[HeartbeatDetails]
-    given JsonDecoder[HeartbeatDetails] = DeriveJsonDecoder.gen[HeartbeatDetails]
-  }
+  final case class HeartbeatDetails(sum: BigDecimal, curr: Int, prev: Int, step: Int) derives ZTemporalCodec
 }
 
 class FibonacciHeartbeatActivityImpl(iterationsCounter: AtomicInteger)(implicit options: ZActivityRunOptions[Any])

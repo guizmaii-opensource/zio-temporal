@@ -10,13 +10,13 @@ import zio.temporal.workflow._
 import java.util.UUID
 import scala.concurrent.TimeoutException
 
-case class Foo(bar: String)
+final case class Foo(bar: String)
 object Foo {
   given JsonEncoder[Foo] = DeriveJsonEncoder.gen[Foo]
   given JsonDecoder[Foo] = DeriveJsonDecoder.gen[Foo]
 }
 
-case class Triple[A, B, C](first: A, second: B, third: C)
+final case class Triple[A, B, C](first: A, second: B, third: C)
 object Triple {
   given [A: JsonEncoder, B: JsonEncoder, C: JsonEncoder]: JsonEncoder[Triple[A, B, C]] =
     DeriveJsonEncoder.gen[Triple[A, B, C]]
@@ -39,7 +39,7 @@ trait ComplexTypesActivity {
   def superNested: Either[List[String], Triple[Option[Int], Set[UUID], Boolean]]
 }
 
-case class ComplexTypesActivityImpl()(implicit options: ZActivityRunOptions[Any]) extends ComplexTypesActivity {
+final case class ComplexTypesActivityImpl()(implicit options: ZActivityRunOptions[Any]) extends ComplexTypesActivity {
   override def either: Either[String, Int] =
     ZActivity.run {
       ZIO.succeed(Right(42))
@@ -76,7 +76,7 @@ trait EitherWorkflow {
   def start: Either[String, Int]
 }
 
-case class EitherWorkflowImpl() extends EitherWorkflow {
+final case class EitherWorkflowImpl() extends EitherWorkflow {
   override def start: Either[String, Int] = {
     val stub = ZWorkflow
       .newActivityStub[ComplexTypesActivity](

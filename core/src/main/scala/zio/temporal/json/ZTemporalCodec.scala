@@ -64,10 +64,10 @@ trait ZTemporalCodec[A] {
 object ZTemporalCodec extends LowPriorityZTemporalCodecInstances0 with LowPriorityZTemporalCodecInstances1 {
 
   /** Summon an existing instance. */
-  def apply[A](implicit ev: ZTemporalCodec[A]): ev.type = ev
+  def apply[A](using ev: ZTemporalCodec[A]): ev.type = ev
 
   /** Build a codec explicitly from the raw zio-json pieces. */
-  def make[A](jsonEncoder: JsonEncoder[A], jsonDecoder: JsonDecoder[A])(implicit ct: ClassTag[A]): ZTemporalCodec[A] =
+  def make[A](jsonEncoder: JsonEncoder[A], jsonDecoder: JsonDecoder[A])(using ClassTag[A]): ZTemporalCodec[A] =
     new Kind0[A](jsonEncoder, jsonDecoder)
 
   /** Derive a codec for a case class, case object, or sealed trait by generating a zio-json codec via

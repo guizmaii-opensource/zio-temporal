@@ -23,15 +23,15 @@ import scala.reflect.ClassTag
   */
 object ScalapbJsonImplicits {
 
-  implicit def scalapbMessageJsonEncoder[A <: GeneratedMessage](implicit ct: ClassTag[A]): JsonEncoder[A] =
+  given scalapbMessageJsonEncoder[A <: GeneratedMessage](using ClassTag[A]): JsonEncoder[A] =
     passthroughEncoder[A]
 
-  implicit def scalapbMessageJsonDecoder[A <: GeneratedMessage](implicit ct: ClassTag[A]): JsonDecoder[A] =
+  given scalapbMessageJsonDecoder[A <: GeneratedMessage](using ClassTag[A]): JsonDecoder[A] =
     passthroughDecoder[A]
 
-  implicit def scalapbSealedOneofJsonEncoder[A <: GeneratedSealedOneof](implicit ct: ClassTag[A]): JsonEncoder[A] =
+  given scalapbSealedOneofJsonEncoder[A <: GeneratedSealedOneof](using ClassTag[A]): JsonEncoder[A] =
     passthroughEncoder[A]
 
-  implicit def scalapbSealedOneofJsonDecoder[A <: GeneratedSealedOneof](implicit ct: ClassTag[A]): JsonDecoder[A] =
+  given scalapbSealedOneofJsonDecoder[A <: GeneratedSealedOneof](using ClassTag[A]): JsonDecoder[A] =
     passthroughDecoder[A]
 }

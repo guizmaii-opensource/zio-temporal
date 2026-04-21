@@ -5,7 +5,7 @@ import zio.temporal._
 import zio.temporal.workflow._
 import scala.reflect.ClassTag
 
-case class ParameterizedWorkflowOutput(message: String)
+final case class ParameterizedWorkflowOutput(message: String)
 object ParameterizedWorkflowOutput {
   given JsonEncoder[ParameterizedWorkflowOutput] = DeriveJsonEncoder.gen[ParameterizedWorkflowOutput]
   given JsonDecoder[ParameterizedWorkflowOutput] = DeriveJsonDecoder.gen[ParameterizedWorkflowOutput]
@@ -14,8 +14,8 @@ object ParameterizedWorkflowOutput {
 sealed trait ParameterizedChildWorkflowInput
 object ParameterizedChildWorkflowInput {
 
-  case class Soda(kind: String)               extends ParameterizedChildWorkflowInput
-  case class Juice(kind: String, volume: Int) extends ParameterizedChildWorkflowInput
+  final case class Soda(kind: String)               extends ParameterizedChildWorkflowInput
+  final case class Juice(kind: String, volume: Int) extends ParameterizedChildWorkflowInput
 
   given JsonEncoder[ParameterizedChildWorkflowInput] = DeriveJsonEncoder.gen[ParameterizedChildWorkflowInput]
   given JsonDecoder[ParameterizedChildWorkflowInput] = DeriveJsonDecoder.gen[ParameterizedChildWorkflowInput]
@@ -36,8 +36,8 @@ trait ParameterizedChildWorkflow[Input <: ParameterizedChildWorkflowInput] {
 sealed trait ParameterizedWorkflowInput
 object ParameterizedWorkflowInput {
 
-  case class Soda(kind: String)  extends ParameterizedWorkflowInput
-  case class Juice(kind: String) extends ParameterizedWorkflowInput
+  final case class Soda(kind: String)  extends ParameterizedWorkflowInput
+  final case class Juice(kind: String) extends ParameterizedWorkflowInput
 
   given JsonEncoder[ParameterizedWorkflowInput] = DeriveJsonEncoder.gen[ParameterizedWorkflowInput]
   given JsonDecoder[ParameterizedWorkflowInput] = DeriveJsonDecoder.gen[ParameterizedWorkflowInput]
