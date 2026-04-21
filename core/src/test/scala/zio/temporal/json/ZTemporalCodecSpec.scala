@@ -99,6 +99,14 @@ class ZTemporalCodecSpec extends AnyWordSpec with Matchers {
       c.decoder.decodeJson(c.encoder.encodeJson(a, None)) shouldEqual Right(a)
       c.decoder.decodeJson(c.encoder.encodeJson(b, None)) shouldEqual Right(b)
     }
+
+    "`derives ZTemporalCodec` on a Scala 3 enum with data cases works end-to-end" in {
+      val c              = ZTemporalCodec[DerivedEnum]
+      val a: DerivedEnum = DerivedEnum.A(42)
+      val b: DerivedEnum = DerivedEnum.B("hi")
+      c.decoder.decodeJson(c.encoder.encodeJson(a, None)) shouldEqual Right(a)
+      c.decoder.decodeJson(c.encoder.encodeJson(b, None)) shouldEqual Right(b)
+    }
   }
 }
 
@@ -121,4 +129,9 @@ sealed trait DerivedShape derives ZTemporalCodec
 object DerivedShape {
   final case class A(n: Int)    extends DerivedShape
   final case class B(s: String) extends DerivedShape
+}
+
+enum DerivedEnum derives ZTemporalCodec {
+  case A(n: Int)
+  case B(s: String)
 }
