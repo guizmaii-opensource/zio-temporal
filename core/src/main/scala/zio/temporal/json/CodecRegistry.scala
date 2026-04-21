@@ -80,7 +80,7 @@ object CodecRegistry {
     *     ZTemporalCodec[MyResult],
     *     ZTemporalCodec[List[MyInput]]
     *   )
-    *   ZWorkflowClientOptions.make @@ ZWorkflowClientOptions.withCodecs(registry)
+    *   ZWorkflowClientOptions.make @@ ZWorkflowClientOptions.withCodecRegistry(registry)
     * }}}
     */
   def of(codecs: ZTemporalCodec[_]*): CodecRegistry = {

@@ -79,7 +79,8 @@ object ZTemporalCodec extends LowPriorityZTemporalCodecInstances0 with LowPriori
     ct:      ClassTag[A],
     cfg:     zio.json.JsonCodecConfiguration = zio.json.JsonCodecConfiguration.default
   ): ZTemporalCodec[A] = {
-    val jc = zio.json.JsonCodec.derived[A]
+    given zio.json.JsonCodecConfiguration = cfg
+    val jc                                = zio.json.JsonCodec.derived[A]
     new Kind0[A](jc.encoder, jc.decoder)
   }
 

@@ -18,7 +18,7 @@ import scala.reflect.ClassTag
   * Import it locally where needed:
   *
   * {{{
-  *   import zio.temporal.protobuf.ScalapbJsonImplicits.given
+  *   import zio.temporal.protobuf.ScalapbJsonImplicits._
   * }}}
   */
 object ScalapbJsonImplicits {
