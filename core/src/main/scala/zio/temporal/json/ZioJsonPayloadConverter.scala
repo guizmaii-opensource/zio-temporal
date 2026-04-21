@@ -29,21 +29,6 @@ final class ZioJsonPayloadConverter(registry: CodecRegistry) extends PayloadConv
     value match {
       case null => Optional.empty()
       case v    =>
-        val cls     = v.getClass
-        val encoder = registry.encoderForClass(cls)
-        if (encoder eq null) {
-          throw new DataConverterException(
-            s"No ZTemporalCodec registered for runtime class `${cls.getName}`.\n" +
-              "Likely causes:\n" +
-              "  1. A workflow or activity interface using this type was not registered with the client.\n" +
-              "     Fix: `ZWorkflowClientOptions.make @@ ZWorkflowClientOptions.withCodecRegistry(\n" +
-              "       new CodecRegistry().addInterface[YourWorkflow].addInterface[YourActivity])`.\n" +
-              "  2. An untyped stub (`ZWorkflowStub.Untyped` / `ZActivityStub.Untyped`) is being used, which\n" +
-              "     bypasses the compile-time codec gate. Pre-register any types you pass through untyped\n" +
-              "     stubs with `registry.register(ZTemporalCodec[YourType])`.\n" +
-              s"Currently registered: [${registry.registeredTypeNames.mkString(", ")}]"
-          )
-        }
         // Streaming encode: zio-json writes UTF-8 JSON straight into Protobuf's `ByteString.Output` via a
         // `WriteWriter` → `OutputStreamWriter` bridge, skipping the `String` intermediate that
         // `encodeJson.toString` + `ByteString.copyFrom(string, UTF_8)` would have produced. For any
@@ -51,7 +36,7 @@ final class ZioJsonPayloadConverter(registry: CodecRegistry) extends PayloadConv
         val byteStringOutput = ByteString.newOutput()
         val writer           = new OutputStreamWriter(byteStringOutput, StandardCharsets.UTF_8)
         val write            = new zio.json.internal.WriteWriter(writer)
-        encoder.asInstanceOf[JsonEncoder[Any]].unsafeEncode(v, None, write)
+        encodeValue(v, write)
         writer.flush() // drain the OutputStreamWriter's internal char buffer into the byte output
         Optional.of(
           Payload
@@ -61,6 +46,77 @@ final class ZioJsonPayloadConverter(registry: CodecRegistry) extends PayloadConv
             .build()
         )
     }
+
+  /** Encodes a single value into the given `Write`. Looks up the encoder by the value's runtime class via the registry;
+    * falls back to per-element dispatch for generic containers (see [[encodeContainer]]) since every `List[X]` shares
+    * the same raw runtime class and no single registered encoder can be correct for all of them.
+    */
+  private def encodeValue(v: Any, out: zio.json.internal.Write): Unit = {
+    val cls     = v.getClass
+    val encoder = registry.encoderForClass(cls)
+    if (encoder ne null) {
+      encoder.asInstanceOf[JsonEncoder[Any]].unsafeEncode(v, None, out)
+    } else if (!encodeContainer(v, out)) {
+      throw new DataConverterException(
+        s"No ZTemporalCodec registered for runtime class `${cls.getName}`.\n" +
+          "Likely causes:\n" +
+          "  1. A workflow or activity interface using this type was not registered with the client.\n" +
+          "     Fix: `ZWorkflowClientOptions.make @@ ZWorkflowClientOptions.withCodecRegistry(\n" +
+          "       new CodecRegistry().addInterface[YourWorkflow].addInterface[YourActivity])`,\n" +
+          "     or on the type itself: `final case class YourType(...) derives ZTemporalCodec`.\n" +
+          "  2. An untyped stub (`ZWorkflowStub.Untyped` / `ZActivityStub.Untyped`) is being used, which\n" +
+          "     bypasses the compile-time codec gate. Pre-register any types you pass through untyped\n" +
+          "     stubs with `registry.register(ZTemporalCodec[YourType])`.\n" +
+          s"Currently registered: [${registry.registeredTypeNames.mkString(", ")}]"
+      )
+    }
+  }
+
+  /** Encodes well-known generic containers (`List`, `Vector`, `Seq`, `Set`, `Option`, `Map[String, _]`) by iterating
+    * their elements and dispatching each to its own runtime-class-based encoder.
+    *
+    * This covers the case where the caller registered `ZTemporalCodec[List[Foo]]` but — because every `List[X]` shares
+    * the same raw class — the registry's `byClass` map couldn't pin that codec to `List[Foo]` uniquely (see
+    * `CodecRegistry#register`). We still need to produce a valid encoded list, so we recurse on each element's actual
+    * runtime class and let the registered element codec do the element-level encoding.
+    *
+    * Returns `true` if the value was recognized and encoded; `false` to let the caller emit its "not registered" error.
+    */
+  private def encodeContainer(v: Any, out: zio.json.internal.Write): Boolean = v match {
+    case iterable: Iterable[_] =>
+      iterable match {
+        case map: Map[_, _] =>
+          out.write('{')
+          var first = true
+          map.foreach { case (k, value) =>
+            if (first) first = false else out.write(',')
+            // JSON object keys must be strings; fall back to `.toString` for non-String keys.
+            out.write('"')
+            out.write(k.toString)
+            out.write('"')
+            out.write(':')
+            encodeValue(value, out)
+          }
+          out.write('}')
+          true
+        case _ =>
+          out.write('[')
+          var first = true
+          iterable.foreach { element =>
+            if (first) first = false else out.write(',')
+            encodeValue(element, out)
+          }
+          out.write(']')
+          true
+      }
+    case Some(inner) =>
+      encodeValue(inner, out)
+      true
+    case None =>
+      out.write('n', 'u', 'l', 'l')
+      true
+    case _ => false
+  }
 
   override def fromData[T](content: Payload, valueClass: Class[T], valueType: Type): T = {
     // Try the parameterized Type first; fall back to the raw class for ground types.

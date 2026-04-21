@@ -121,6 +121,142 @@ class ZioJsonPayloadConverterSpec extends AnyWordSpec with Matchers {
       r.encoderForClass(classOf[InterfaceWalkTaggedImpl]) should not be null
     }
   }
+
+  "ZioJsonPayloadConverter — parameterized-type collision" should {
+
+    // Regression: registering `List[User]` and `List[Org]` used to put both encoders under
+    // `classOf[List]` in `byClass`, with the second registration silently overwriting the first. Encoding
+    // a `List[User]` would then pick up the `List[Org]` encoder and produce JSON with Org's schema,
+    // corrupting the payload. The fix: parameterized-type codecs live only in `byType`; the encode path
+    // falls back to per-element dispatch for generic containers.
+
+    "round-trip List[User] even when List[Org] is also registered (the two do not collide)" in {
+      val registry = new CodecRegistry()
+        .register(ZTemporalCodec[User])
+        .register(ZTemporalCodec[Org])
+        .register(ZTemporalCodec[List[User]])
+        .register(ZTemporalCodec[List[Org]]) // registered LAST — would have overwritten List[User] pre-fix.
+      val converter = new ZioJsonPayloadConverter(registry)
+
+      val users   = List(User(1, "alice"), User(2, "bob"))
+      val payload = converter.toData(users).orElseThrow(() => new AssertionError("expected non-empty"))
+      payload.getData.toStringUtf8 shouldEqual """[{"id":1,"name":"alice"},{"id":2,"name":"bob"}]"""
+
+      val listUserCodec = ZTemporalCodec[List[User]]
+      val decoded       =
+        converter.fromData(
+          payload,
+          classOf[List[User]].asInstanceOf[Class[List[User]]],
+          listUserCodec.genericType
+        )
+      decoded shouldEqual users
+    }
+
+    "round-trip List[Org] alongside List[User]" in {
+      val registry = new CodecRegistry()
+        .register(ZTemporalCodec[User])
+        .register(ZTemporalCodec[Org])
+        .register(ZTemporalCodec[List[User]])
+        .register(ZTemporalCodec[List[Org]])
+      val converter = new ZioJsonPayloadConverter(registry)
+
+      val orgs    = List(Org("acme"), Org("globex"))
+      val payload = converter.toData(orgs).orElseThrow(() => new AssertionError("expected non-empty"))
+      payload.getData.toStringUtf8 shouldEqual """[{"name":"acme"},{"name":"globex"}]"""
+
+      val listOrgCodec = ZTemporalCodec[List[Org]]
+      val decoded      =
+        converter.fromData(
+          payload,
+          classOf[List[Org]].asInstanceOf[Class[List[Org]]],
+          listOrgCodec.genericType
+        )
+      decoded shouldEqual orgs
+    }
+
+    "round-trip List[User] when only the element codec is registered (no List codec needed on encode)" in {
+      // Encode side: `encoderForClass(classOf[$colon$colon])` misses → container dispatch kicks in,
+      // each element uses the `User` codec. Decode side: needs `ZTemporalCodec[List[User]]` for the
+      // generic-type lookup, so we register that too.
+      val registry = new CodecRegistry()
+        .register(ZTemporalCodec[User])
+        .register(ZTemporalCodec[List[User]])
+      val converter = new ZioJsonPayloadConverter(registry)
+
+      val users   = List(User(1, "alice"))
+      val payload = converter.toData(users).orElseThrow(() => new AssertionError("expected non-empty"))
+      payload.getData.toStringUtf8 shouldEqual """[{"id":1,"name":"alice"}]"""
+
+      val decoded = converter.fromData(
+        payload,
+        classOf[List[User]].asInstanceOf[Class[List[User]]],
+        ZTemporalCodec[List[User]].genericType
+      )
+      decoded shouldEqual users
+    }
+
+    "encode an empty List[User] to `[]`" in {
+      val registry  = new CodecRegistry().register(ZTemporalCodec[User]).register(ZTemporalCodec[List[User]])
+      val converter = new ZioJsonPayloadConverter(registry)
+      val payload   = converter.toData(List.empty[User]).orElseThrow(() => new AssertionError("empty"))
+      payload.getData.toStringUtf8 shouldEqual "[]"
+    }
+
+    "container dispatch also handles Vector[User] and Set[User]" in {
+      val registry  = new CodecRegistry().register(ZTemporalCodec[User])
+      val converter = new ZioJsonPayloadConverter(registry)
+
+      val vec = converter.toData(Vector(User(1, "a"))).orElseThrow(() => new AssertionError("vec"))
+      vec.getData.toStringUtf8 shouldEqual """[{"id":1,"name":"a"}]"""
+
+      val set = converter.toData(Set(User(1, "a"))).orElseThrow(() => new AssertionError("set"))
+      set.getData.toStringUtf8 shouldEqual """[{"id":1,"name":"a"}]"""
+    }
+
+    "container dispatch handles Some(User) and None" in {
+      val registry  = new CodecRegistry().register(ZTemporalCodec[User])
+      val converter = new ZioJsonPayloadConverter(registry)
+
+      val some = converter.toData(Some(User(1, "a"))).orElseThrow(() => new AssertionError("some"))
+      some.getData.toStringUtf8 shouldEqual """{"id":1,"name":"a"}"""
+
+      val none = converter.toData(None).orElseThrow(() => new AssertionError("none"))
+      none.getData.toStringUtf8 shouldEqual "null"
+    }
+
+    "container dispatch handles Map[String, User]" in {
+      val registry  = new CodecRegistry().register(ZTemporalCodec[User])
+      val converter = new ZioJsonPayloadConverter(registry)
+      val payload   =
+        converter
+          .toData(Map("alice" -> User(1, "alice"), "bob" -> User(2, "bob")))
+          .orElseThrow(() => new AssertionError("map"))
+      val body = payload.getData.toStringUtf8
+      // Map iteration order is insertion-stable for immutable.Map; the JSON should contain both entries.
+      body should include(""""alice":{"id":1,"name":"alice"}""")
+      body should include(""""bob":{"id":2,"name":"bob"}""")
+    }
+
+    "nested List[List[User]] round-trips" in {
+      val registry = new CodecRegistry()
+        .register(ZTemporalCodec[User])
+        .register(ZTemporalCodec[List[User]])
+        .register(ZTemporalCodec[List[List[User]]])
+      val converter = new ZioJsonPayloadConverter(registry)
+
+      val nested  = List(List(User(1, "a")), List(User(2, "b"), User(3, "c")))
+      val payload = converter.toData(nested).orElseThrow(() => new AssertionError("nested"))
+      payload.getData.toStringUtf8 shouldEqual
+        """[[{"id":1,"name":"a"}],[{"id":2,"name":"b"},{"id":3,"name":"c"}]]"""
+
+      val decoded = converter.fromData(
+        payload,
+        classOf[List[List[User]]].asInstanceOf[Class[List[List[User]]]],
+        ZTemporalCodec[List[List[User]]].genericType
+      )
+      decoded shouldEqual nested
+    }
+  }
 }
 
 // Fixtures for the interface-walk tests (names prefixed `InterfaceWalk` to avoid collision with `Shape`

@@ -28,13 +28,21 @@ final class CodecRegistry {
   private val byClass = new ConcurrentHashMap[Class[_], (JsonEncoder[_], JsonDecoder[_])]()
   private val byType  = new ConcurrentHashMap[Type, (JsonEncoder[_], JsonDecoder[_])]()
 
-  /** Register a codec. Safe to call repeatedly; a later call with the same key wins.
+  /** Register a codec.
     *
-    * Indexes by both the raw runtime class (for encode) and the generic `Type` (for decode). When `codec.genericType`
-    * equals `codec.klass` (a ground type), only the class mapping is effective.
+    * Ground types (where `codec.genericType == codec.klass`) are indexed in both views — `byClass` keyed on the runtime
+    * class for encode-side lookup, `byType` keyed on the same class for decode-side symmetry.
+    *
+    * Parameterized types (e.g. `ZTemporalCodec[List[Foo]]`) are indexed '''only''' in `byType`, keyed on the full
+    * `ParameterizedType`. They are ''not'' added to `byClass` because every `List[X]` erases to the same raw
+    * `classOf[List]` at runtime — indexing them there would let the last-registered `List[X]` silently overwrite every
+    * other, and encoding any `List[_]` value would pick up the wrong element encoder, producing corrupted JSON. See
+    * [[encoderForClass]] for how the encode path handles generic containers without a direct byClass hit.
     */
   def register[A](codec: ZTemporalCodec[A]): this.type = {
-    byClass.put(codec.klass, (codec.encoder, codec.decoder))
+    if (codec.genericType == codec.klass) {
+      byClass.put(codec.klass, (codec.encoder, codec.decoder))
+    }
     byType.put(codec.genericType, (codec.encoder, codec.decoder))
     this
   }

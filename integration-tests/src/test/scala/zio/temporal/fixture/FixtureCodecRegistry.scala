@@ -56,7 +56,13 @@ object FixtureCodecRegistry {
       .addInterface[ZioUntypedActivity]
       .addInterface[ZioWorkflow]
       .addInterface[ZioWorkflowUntyped]
-  // Intentionally excluded — these test `T | Null` erasure-warning behavior and use types the codec gate
-  // can't handle, by design: ConcreteUnionWorkflow, ProblematicUnionWorkflow, IntOrNullWorkflow,
-  // NewtypeWorkflow, StringOrNullWorkflow.
+  // Intentionally excluded: the following fixtures use Scala 3 union-with-null types (`String | Null`,
+  // `Int | Null`, `TestId | Null`) to test the erasure-warning machinery. They are not meant to
+  // round-trip serialize — zio-json can't derive a codec for a union type (no `Mirror.Of` for unions)
+  // and the runtime class erases to `Object` anyway, so there's no meaningful registry key. The fixtures
+  // exist so that `InvocationMacroUtils.warnPossibleSerializationIssues` has something to emit the
+  // "will be erased to java.lang.Object" warning against.
+  //   - ConcreteUnionWorkflow, ProblematicUnionWorkflow
+  //   - IntOrNullWorkflow, StringOrNullWorkflow
+  //   - NewtypeWorkflow
 }

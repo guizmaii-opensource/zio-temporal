@@ -82,10 +82,23 @@ object InterfaceCodecsMacros {
           List(other)
       }
 
+    // Also collect the type arguments of parameterized types — recursively. Every `List[Foo]` needs `Foo` registered
+    // separately too, because the runtime encode path dispatches per-element using the element's own runtime class
+    // (see `ZioJsonPayloadConverter#encodeContainer`). Without this recursion, a `List[Foo]` would have its own
+    // parameterized-type codec in `byType` but no encoder for `Foo` in `byClass`, and per-element dispatch would
+    // fall through to "not registered."
+    def expandTypeArgs(tpe: TypeRepr): List[TypeRepr] = {
+      val direct = tpe match {
+        case AppliedType(_, args) => args.flatMap(expandTypeArgs)
+        case _                    => Nil
+      }
+      tpe +: direct
+    }
+
     val typesNeedingCodecs: List[TypeRepr] = boundaryMethods
       .flatMap { m =>
         val resolved = interfaceRepr.memberType(m)
-        collect(resolved)
+        collect(resolved).flatMap(expandTypeArgs)
       }
       .foldLeft(List.empty[TypeRepr]) { (acc, t) =>
         // Dedupe by semantic equivalence — avoids emitting duplicate register() calls.
