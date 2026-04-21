@@ -5,6 +5,7 @@ import io.temporal.api.common.v1.Payload
 import io.temporal.common.converter._
 import zio.json.{JsonDecoder, JsonEncoder}
 
+import java.io.OutputStreamWriter
 import java.lang.reflect.Type
 import java.nio.charset.StandardCharsets
 import java.util.Optional
@@ -43,17 +44,20 @@ final class ZioJsonPayloadConverter(registry: CodecRegistry) extends PayloadConv
               s"Currently registered: [${registry.registeredTypeNames.mkString(", ")}]"
           )
         }
-        // encodeJson returns a CharSequence (concretely a StringBuilder-like type); Protobuf's ByteString.copyFrom
-        // only accepts String, so we must materialize.
-        val json = encoder
-          .asInstanceOf[JsonEncoder[Any]]
-          .encodeJson(v, None)
-          .toString
+        // Streaming encode: zio-json writes UTF-8 JSON straight into Protobuf's `ByteString.Output` via a
+        // `WriteWriter` → `OutputStreamWriter` bridge, skipping the `String` intermediate that
+        // `encodeJson.toString` + `ByteString.copyFrom(string, UTF_8)` would have produced. For any
+        // non-trivial payload this saves a full copy of the encoded bytes (one round-trip String → bytes).
+        val byteStringOutput = ByteString.newOutput()
+        val writer           = new OutputStreamWriter(byteStringOutput, StandardCharsets.UTF_8)
+        val write            = new zio.json.internal.WriteWriter(writer)
+        encoder.asInstanceOf[JsonEncoder[Any]].unsafeEncode(v, None, write)
+        writer.flush() // drain the OutputStreamWriter's internal char buffer into the byte output
         Optional.of(
           Payload
             .newBuilder()
             .putMetadata(EncodingMetadataKey, EncodingPayload)
-            .setData(ByteString.copyFrom(json, StandardCharsets.UTF_8))
+            .setData(byteStringOutput.toByteString)
             .build()
         )
     }
