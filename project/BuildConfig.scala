@@ -7,8 +7,7 @@ object BuildConfig extends Dependencies {
     Temporal.self,
     Temporal.openTracing % Optional,
     Zio.self,
-    Jackson.scala,
-    Jackson.jsr310
+    Zio.json
   )
 
   val coreLibs = baseLibs ++ Seq(
@@ -55,10 +54,10 @@ trait Dependencies {
   private object versions {
     val temporal   = "1.34.0"
     val zio        = "2.1.25"
+    val zioJson    = "0.9.1"
     val zioLogging = "2.5.3"
     val zioPrelude = "1.0.0-RC47"
     val enumeratum = "1.9.0"
-    val jackson    = "2.21.2"
     val otel       = "1.61.0"
   }
 
@@ -68,15 +67,10 @@ trait Dependencies {
     val openTracing = "io.temporal" % "temporal-opentracing" % versions.temporal
   }
 
-  object Jackson {
-    val scala = "com.fasterxml.jackson.module" %% "jackson-module-scala" % versions.jackson
-    // to support zio.Duration (that is java.time.Duration)
-    val jsr310 = "com.fasterxml.jackson.datatype" % "jackson-datatype-jsr310" % versions.jackson
-  }
-
   object Zio {
     val self           = "dev.zio" %% "zio"               % versions.zio
     val streams        = "dev.zio" %% "zio-streams"       % versions.zio
+    val json           = "dev.zio" %% "zio-json"          % versions.zioJson
     val test           = "dev.zio" %% "zio-test"          % versions.zio
     val testSbt        = "dev.zio" %% "zio-test-sbt"      % versions.zio
     val testMagnolia   = "dev.zio" %% "zio-test-magnolia" % versions.zio

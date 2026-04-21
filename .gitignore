@@ -19,3 +19,5 @@ website/variables.js
 website/static/api
 
 .bsp
+
+.worktrees/
