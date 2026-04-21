@@ -25,16 +25,16 @@ import scala.reflect.ClassTag
   */
 package object protobuf {
 
-  private[protobuf] def passthroughMessage[A](using ct: ClassTag[A]): String =
-    s"JsonEncoder/JsonDecoder for protobuf type ${ct.runtimeClass.getName} should not be invoked — " +
+  private[protobuf] def passthroughMessage[A](using classTag: ClassTag[A]): String =
+    s"JsonEncoder/JsonDecoder for protobuf type ${classTag.runtimeClass.getName} should not be invoked — " +
       "ScalapbPayloadConverter handles protobuf types before ZioJsonPayloadConverter in the DataConverter chain."
 
-  private[protobuf] def passthroughEncoder[A](using ct: ClassTag[A]): JsonEncoder[A] = {
+  private[protobuf] def passthroughEncoder[A](using classTag: ClassTag[A]): JsonEncoder[A] = {
     val msg = passthroughMessage[A]
     JsonEncoder.string.contramap[A](_ => throw new UnsupportedOperationException(msg))
   }
 
-  private[protobuf] def passthroughDecoder[A](using ct: ClassTag[A]): JsonDecoder[A] = {
+  private[protobuf] def passthroughDecoder[A](using classTag: ClassTag[A]): JsonDecoder[A] = {
     val msg = passthroughMessage[A]
     JsonDecoder.string.mapOrFail[A](_ => Left(msg))
   }

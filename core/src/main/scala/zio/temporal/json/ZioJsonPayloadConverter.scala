@@ -28,19 +28,24 @@ final class ZioJsonPayloadConverter(registry: CodecRegistry) extends PayloadConv
     value match {
       case null => Optional.empty()
       case v    =>
-        val cls = v.getClass
-        val enc = registry.encoderForClass(cls)
-        if (enc eq null) {
+        val cls     = v.getClass
+        val encoder = registry.encoderForClass(cls)
+        if (encoder eq null) {
           throw new DataConverterException(
-            s"No ZTemporalCodec registered for runtime class ${cls.getName}. " +
-              "This usually means a workflow/activity interface using this type was not registered with the client " +
-              "or worker, or a manual payload is being serialized outside a typed stub. " +
+            s"No ZTemporalCodec registered for runtime class `${cls.getName}`.\n" +
+              "Likely causes:\n" +
+              "  1. A workflow or activity interface using this type was not registered with the client.\n" +
+              "     Fix: `ZWorkflowClientOptions.make @@ ZWorkflowClientOptions.withCodecRegistry(\n" +
+              "       new CodecRegistry().addInterface[YourWorkflow].addInterface[YourActivity])`.\n" +
+              "  2. An untyped stub (`ZWorkflowStub.Untyped` / `ZActivityStub.Untyped`) is being used, which\n" +
+              "     bypasses the compile-time codec gate. Pre-register any types you pass through untyped\n" +
+              "     stubs with `registry.register(ZTemporalCodec[YourType])`.\n" +
               s"Currently registered: [${registry.registeredTypeNames.mkString(", ")}]"
           )
         }
         // encodeJson returns a CharSequence (concretely a StringBuilder-like type); Protobuf's ByteString.copyFrom
         // only accepts String, so we must materialize.
-        val json = enc
+        val json = encoder
           .asInstanceOf[JsonEncoder[Any]]
           .encodeJson(v, None)
           .toString
@@ -55,18 +60,23 @@ final class ZioJsonPayloadConverter(registry: CodecRegistry) extends PayloadConv
 
   override def fromData[T](content: Payload, valueClass: Class[T], valueType: Type): T = {
     // Try the parameterized Type first; fall back to the raw class for ground types.
-    var dec: JsonDecoder[_] | Null = registry.decoderForType(valueType)
-    if (dec eq null) dec = registry.decoderForType(valueClass)
-    if (dec eq null) {
+    var decoder: JsonDecoder[_] | Null = registry.decoderForType(valueType)
+    if (decoder eq null) decoder = registry.decoderForType(valueClass)
+    if (decoder eq null) {
       throw new DataConverterException(
-        s"No ZTemporalCodec registered for decode target ${valueType.getTypeName} (raw ${valueClass.getName}). " +
-          "This usually means a workflow/activity interface using this type was not registered with the client " +
-          "or worker. " +
+        s"No ZTemporalCodec registered for decode target `${valueType.getTypeName}` (raw `${valueClass.getName}`).\n" +
+          "Likely causes:\n" +
+          "  1. A workflow or activity interface using this type was not registered with the worker or client.\n" +
+          "     Fix: `ZWorkflowClientOptions.make @@ ZWorkflowClientOptions.withCodecRegistry(\n" +
+          "       new CodecRegistry().addInterface[YourWorkflow].addInterface[YourActivity])`.\n" +
+          "  2. An untyped stub (`ZWorkflowStub.Untyped` / `ZActivityStub.Untyped`) is being used.\n" +
+          "     Pre-register any types you query/receive through untyped stubs with\n" +
+          "     `registry.register(ZTemporalCodec[YourType])`.\n" +
           s"Currently registered: [${registry.registeredTypeNames.mkString(", ")}]"
       )
     }
     val json   = content.getData.toStringUtf8
-    val result = dec.asInstanceOf[JsonDecoder[T]].decodeJson(json)
+    val result = decoder.asInstanceOf[JsonDecoder[T]].decodeJson(json)
     result match {
       case Right(v)  => v
       case Left(err) => throw new DataConverterException(s"Failed to decode payload as ${valueType.getTypeName}: $err")

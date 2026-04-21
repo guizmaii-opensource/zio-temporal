@@ -75,13 +75,13 @@ object ZTemporalCodec extends LowPriorityZTemporalCodecInstances0 with LowPriori
     * derivation does.
     */
   inline def derived[A](
-    using m: scala.deriving.Mirror.Of[A],
-    ct:      ClassTag[A],
-    cfg:     zio.json.JsonCodecConfiguration = zio.json.JsonCodecConfiguration.default
+    using m:  scala.deriving.Mirror.Of[A],
+    classTag: ClassTag[A],
+    cfg:      zio.json.JsonCodecConfiguration = zio.json.JsonCodecConfiguration.default
   ): ZTemporalCodec[A] = {
     given zio.json.JsonCodecConfiguration = cfg
-    val jc                                = zio.json.JsonCodec.derived[A]
-    new Kind0[A](jc.encoder, jc.decoder)
+    val jsonCodec                         = zio.json.JsonCodec.derived[A]
+    new Kind0[A](jsonCodec.encoder, jsonCodec.decoder)
   }
 
   /** Codec for `Unit`. zio-json does not ship one — `Unit` is a Scala-only concept — and Temporal uses it everywhere
@@ -89,23 +89,23 @@ object ZTemporalCodec extends LowPriorityZTemporalCodecInstances0 with LowPriori
     * JSON on decode, matching the behaviour of the old Jackson-based `BoxedUnitModule`.
     */
   implicit val unitCodec: ZTemporalCodec[Unit] = {
-    val encoder: JsonEncoder[Unit]  = JsonEncoder[zio.json.ast.Json].contramap(_ => zio.json.ast.Json.Obj())
-    val decoder: JsonDecoder[Unit]  = JsonDecoder[zio.json.ast.Json].map(_ => ())
-    implicit val ct: ClassTag[Unit] = ClassTag.Unit
+    val encoder: JsonEncoder[Unit]        = JsonEncoder[zio.json.ast.Json].contramap(_ => zio.json.ast.Json.Obj())
+    val decoder: JsonDecoder[Unit]        = JsonDecoder[zio.json.ast.Json].map(_ => ())
+    implicit val classTag: ClassTag[Unit] = ClassTag.Unit
     new Kind0[Unit](encoder, decoder)
   }
 
   /** Bridge: when a `JsonCodec[A]` is in scope (e.g. from `final case class Foo(...) derives JsonCodec`), expose its
     * encoder as a `JsonEncoder[A]`. Lets zio-json's generic combinators (`JsonEncoder.list`, `JsonEncoder.option`, …)
-    * find what they need without forcing users to hand-write a separate `given JsonEncoder[Foo] = jc.encoder`.
+    * find what they need without forcing users to hand-write a separate `given JsonEncoder[Foo] = jsonCodec.encoder`.
     *
     * Intentionally generic so it stays less-specific than zio-json's own `JsonEncoder.int` etc. — Scala's
     * given-specificity rules prefer the non-generic instance for primitives, avoiding ambiguity.
     */
-  given jsonEncoderFromJsonCodec[A](using jc: zio.json.JsonCodec[A]): JsonEncoder[A] = jc.encoder
+  given jsonEncoderFromJsonCodec[A](using jsonCodec: zio.json.JsonCodec[A]): JsonEncoder[A] = jsonCodec.encoder
 
   /** Bridge counterpart to [[jsonEncoderFromJsonCodec]]. */
-  given jsonDecoderFromJsonCodec[A](using jc: zio.json.JsonCodec[A]): JsonDecoder[A] = jc.decoder
+  given jsonDecoderFromJsonCodec[A](using jsonCodec: zio.json.JsonCodec[A]): JsonDecoder[A] = jsonCodec.decoder
 
   /** Concrete implementation of a `ZTemporalCodec[A]` with equality based on rawType + type arguments.
     *
@@ -115,10 +115,10 @@ object ZTemporalCodec extends LowPriorityZTemporalCodecInstances0 with LowPriori
   private[json] final class Kind0[A](
     val encoder: JsonEncoder[A],
     val decoder: JsonDecoder[A]
-  )(implicit ct: ClassTag[A])
+  )(implicit classTag: ClassTag[A])
       extends ZTemporalCodec[A] {
-    val klass: Class[A]   = ct.runtimeClass.asInstanceOf[Class[A]]
-    val genericType: Type = ct.runtimeClass
+    val klass: Class[A]   = classTag.runtimeClass.asInstanceOf[Class[A]]
+    val genericType: Type = classTag.runtimeClass
   }
 
   private[json] final class KindN[A](
@@ -150,11 +150,11 @@ object ZTemporalCodec extends LowPriorityZTemporalCodecInstances0 with LowPriori
       java.util.Arrays.hashCode(typeArgs.asInstanceOf[Array[AnyRef]]) ^ rawType.hashCode()
 
     override def toString: String =
-      s"${rawType.getTypeName}<${typeArgs.map(_.getTypeName).mkString(", ")}>"
+      s"${rawType.getTypeName}[${typeArgs.map(_.getTypeName).mkString(", ")}]"
   }
 }
 
-/** Kind-1 through kind-7 derivations for generic types. Higher priority than the ground `kind0` so that the richer
+/** Kind-1 through kind-22 derivations for generic types. Higher priority than the ground `kind0` so that the richer
   * `ParameterizedType` info is used whenever type parameters are available.
   */
 private[json] trait LowPriorityZTemporalCodecInstances0 {
@@ -162,45 +162,45 @@ private[json] trait LowPriorityZTemporalCodecInstances0 {
 
   given kind1[F[_], A](
     using inner: ZTemporalCodec[A],
-    enc:         JsonEncoder[F[A]],
-    dec:         JsonDecoder[F[A]],
-    ct:          ClassTag[F[A]]
+    encoder:     JsonEncoder[F[A]],
+    decoder:     JsonDecoder[F[A]],
+    classTag:    ClassTag[F[A]]
   ): ZTemporalCodec[F[A]] =
     new KindN[F[A]](
-      enc,
-      dec,
-      ct.runtimeClass.asInstanceOf[Class[F[A]]],
-      new ZParameterizedType(ct.runtimeClass, Array(inner.genericType))
+      encoder,
+      decoder,
+      classTag.runtimeClass.asInstanceOf[Class[F[A]]],
+      new ZParameterizedType(classTag.runtimeClass, Array(inner.genericType))
     )
 
   given kind2[F[_, _], A, B](
     using innerA: ZTemporalCodec[A],
     innerB:       ZTemporalCodec[B],
-    enc:          JsonEncoder[F[A, B]],
-    dec:          JsonDecoder[F[A, B]],
-    ct:           ClassTag[F[A, B]]
+    encoder:      JsonEncoder[F[A, B]],
+    decoder:      JsonDecoder[F[A, B]],
+    classTag:     ClassTag[F[A, B]]
   ): ZTemporalCodec[F[A, B]] =
     new KindN[F[A, B]](
-      enc,
-      dec,
-      ct.runtimeClass.asInstanceOf[Class[F[A, B]]],
-      new ZParameterizedType(ct.runtimeClass, Array(innerA.genericType, innerB.genericType))
+      encoder,
+      decoder,
+      classTag.runtimeClass.asInstanceOf[Class[F[A, B]]],
+      new ZParameterizedType(classTag.runtimeClass, Array(innerA.genericType, innerB.genericType))
     )
 
   given kind3[F[_, _, _], A, B, C](
     using innerA: ZTemporalCodec[A],
     innerB:       ZTemporalCodec[B],
     innerC:       ZTemporalCodec[C],
-    enc:          JsonEncoder[F[A, B, C]],
-    dec:          JsonDecoder[F[A, B, C]],
-    ct:           ClassTag[F[A, B, C]]
+    encoder:      JsonEncoder[F[A, B, C]],
+    decoder:      JsonDecoder[F[A, B, C]],
+    classTag:     ClassTag[F[A, B, C]]
   ): ZTemporalCodec[F[A, B, C]] =
     new KindN[F[A, B, C]](
-      enc,
-      dec,
-      ct.runtimeClass.asInstanceOf[Class[F[A, B, C]]],
+      encoder,
+      decoder,
+      classTag.runtimeClass.asInstanceOf[Class[F[A, B, C]]],
       new ZParameterizedType(
-        ct.runtimeClass,
+        classTag.runtimeClass,
         Array(innerA.genericType, innerB.genericType, innerC.genericType)
       )
     )
@@ -210,16 +210,16 @@ private[json] trait LowPriorityZTemporalCodecInstances0 {
     innerB:       ZTemporalCodec[B],
     innerC:       ZTemporalCodec[C],
     innerD:       ZTemporalCodec[D],
-    enc:          JsonEncoder[F[A, B, C, D]],
-    dec:          JsonDecoder[F[A, B, C, D]],
-    ct:           ClassTag[F[A, B, C, D]]
+    encoder:      JsonEncoder[F[A, B, C, D]],
+    decoder:      JsonDecoder[F[A, B, C, D]],
+    classTag:     ClassTag[F[A, B, C, D]]
   ): ZTemporalCodec[F[A, B, C, D]] =
     new KindN[F[A, B, C, D]](
-      enc,
-      dec,
-      ct.runtimeClass.asInstanceOf[Class[F[A, B, C, D]]],
+      encoder,
+      decoder,
+      classTag.runtimeClass.asInstanceOf[Class[F[A, B, C, D]]],
       new ZParameterizedType(
-        ct.runtimeClass,
+        classTag.runtimeClass,
         Array(innerA.genericType, innerB.genericType, innerC.genericType, innerD.genericType)
       )
     )
@@ -230,16 +230,16 @@ private[json] trait LowPriorityZTemporalCodecInstances0 {
     innerC:       ZTemporalCodec[C],
     innerD:       ZTemporalCodec[D],
     innerE:       ZTemporalCodec[E],
-    enc:          JsonEncoder[F[A, B, C, D, E]],
-    dec:          JsonDecoder[F[A, B, C, D, E]],
-    ct:           ClassTag[F[A, B, C, D, E]]
+    encoder:      JsonEncoder[F[A, B, C, D, E]],
+    decoder:      JsonDecoder[F[A, B, C, D, E]],
+    classTag:     ClassTag[F[A, B, C, D, E]]
   ): ZTemporalCodec[F[A, B, C, D, E]] =
     new KindN[F[A, B, C, D, E]](
-      enc,
-      dec,
-      ct.runtimeClass.asInstanceOf[Class[F[A, B, C, D, E]]],
+      encoder,
+      decoder,
+      classTag.runtimeClass.asInstanceOf[Class[F[A, B, C, D, E]]],
       new ZParameterizedType(
-        ct.runtimeClass,
+        classTag.runtimeClass,
         Array(innerA.genericType, innerB.genericType, innerC.genericType, innerD.genericType, innerE.genericType)
       )
     )
@@ -251,16 +251,16 @@ private[json] trait LowPriorityZTemporalCodecInstances0 {
     innerD:       ZTemporalCodec[D],
     innerE:       ZTemporalCodec[E],
     innerG:       ZTemporalCodec[G],
-    enc:          JsonEncoder[F[A, B, C, D, E, G]],
-    dec:          JsonDecoder[F[A, B, C, D, E, G]],
-    ct:           ClassTag[F[A, B, C, D, E, G]]
+    encoder:      JsonEncoder[F[A, B, C, D, E, G]],
+    decoder:      JsonDecoder[F[A, B, C, D, E, G]],
+    classTag:     ClassTag[F[A, B, C, D, E, G]]
   ): ZTemporalCodec[F[A, B, C, D, E, G]] =
     new KindN[F[A, B, C, D, E, G]](
-      enc,
-      dec,
-      ct.runtimeClass.asInstanceOf[Class[F[A, B, C, D, E, G]]],
+      encoder,
+      decoder,
+      classTag.runtimeClass.asInstanceOf[Class[F[A, B, C, D, E, G]]],
       new ZParameterizedType(
-        ct.runtimeClass,
+        classTag.runtimeClass,
         Array(
           innerA.genericType,
           innerB.genericType,
@@ -280,16 +280,16 @@ private[json] trait LowPriorityZTemporalCodecInstances0 {
     innerE:       ZTemporalCodec[E],
     innerG:       ZTemporalCodec[G],
     innerH:       ZTemporalCodec[H],
-    enc:          JsonEncoder[F[A, B, C, D, E, G, H]],
-    dec:          JsonDecoder[F[A, B, C, D, E, G, H]],
-    ct:           ClassTag[F[A, B, C, D, E, G, H]]
+    encoder:      JsonEncoder[F[A, B, C, D, E, G, H]],
+    decoder:      JsonDecoder[F[A, B, C, D, E, G, H]],
+    classTag:     ClassTag[F[A, B, C, D, E, G, H]]
   ): ZTemporalCodec[F[A, B, C, D, E, G, H]] =
     new KindN[F[A, B, C, D, E, G, H]](
-      enc,
-      dec,
-      ct.runtimeClass.asInstanceOf[Class[F[A, B, C, D, E, G, H]]],
+      encoder,
+      decoder,
+      classTag.runtimeClass.asInstanceOf[Class[F[A, B, C, D, E, G, H]]],
       new ZParameterizedType(
-        ct.runtimeClass,
+        classTag.runtimeClass,
         Array(
           innerA.genericType,
           innerB.genericType,
@@ -301,12 +301,823 @@ private[json] trait LowPriorityZTemporalCodecInstances0 {
         )
       )
     )
+
+  given kind8[F[_, _, _, _, _, _, _, _], A, B, C, D, E, G, H, I](
+    using
+    innerA:   ZTemporalCodec[A],
+    innerB:   ZTemporalCodec[B],
+    innerC:   ZTemporalCodec[C],
+    innerD:   ZTemporalCodec[D],
+    innerE:   ZTemporalCodec[E],
+    innerG:   ZTemporalCodec[G],
+    innerH:   ZTemporalCodec[H],
+    innerI:   ZTemporalCodec[I],
+    encoder:  JsonEncoder[F[A, B, C, D, E, G, H, I]],
+    decoder:  JsonDecoder[F[A, B, C, D, E, G, H, I]],
+    classTag: ClassTag[F[A, B, C, D, E, G, H, I]]
+  ): ZTemporalCodec[F[A, B, C, D, E, G, H, I]] =
+    new KindN[F[A, B, C, D, E, G, H, I]](
+      encoder,
+      decoder,
+      classTag.runtimeClass.asInstanceOf[Class[F[A, B, C, D, E, G, H, I]]],
+      new ZParameterizedType(
+        classTag.runtimeClass,
+        Array(
+          innerA.genericType,
+          innerB.genericType,
+          innerC.genericType,
+          innerD.genericType,
+          innerE.genericType,
+          innerG.genericType,
+          innerH.genericType,
+          innerI.genericType
+        )
+      )
+    )
+
+  given kind9[F[_, _, _, _, _, _, _, _, _], A, B, C, D, E, G, H, I, J](
+    using
+    innerA:   ZTemporalCodec[A],
+    innerB:   ZTemporalCodec[B],
+    innerC:   ZTemporalCodec[C],
+    innerD:   ZTemporalCodec[D],
+    innerE:   ZTemporalCodec[E],
+    innerG:   ZTemporalCodec[G],
+    innerH:   ZTemporalCodec[H],
+    innerI:   ZTemporalCodec[I],
+    innerJ:   ZTemporalCodec[J],
+    encoder:  JsonEncoder[F[A, B, C, D, E, G, H, I, J]],
+    decoder:  JsonDecoder[F[A, B, C, D, E, G, H, I, J]],
+    classTag: ClassTag[F[A, B, C, D, E, G, H, I, J]]
+  ): ZTemporalCodec[F[A, B, C, D, E, G, H, I, J]] =
+    new KindN[F[A, B, C, D, E, G, H, I, J]](
+      encoder,
+      decoder,
+      classTag.runtimeClass.asInstanceOf[Class[F[A, B, C, D, E, G, H, I, J]]],
+      new ZParameterizedType(
+        classTag.runtimeClass,
+        Array(
+          innerA.genericType,
+          innerB.genericType,
+          innerC.genericType,
+          innerD.genericType,
+          innerE.genericType,
+          innerG.genericType,
+          innerH.genericType,
+          innerI.genericType,
+          innerJ.genericType
+        )
+      )
+    )
+
+  given kind10[F[_, _, _, _, _, _, _, _, _, _], A, B, C, D, E, G, H, I, J, K](
+    using
+    innerA:   ZTemporalCodec[A],
+    innerB:   ZTemporalCodec[B],
+    innerC:   ZTemporalCodec[C],
+    innerD:   ZTemporalCodec[D],
+    innerE:   ZTemporalCodec[E],
+    innerG:   ZTemporalCodec[G],
+    innerH:   ZTemporalCodec[H],
+    innerI:   ZTemporalCodec[I],
+    innerJ:   ZTemporalCodec[J],
+    innerK:   ZTemporalCodec[K],
+    encoder:  JsonEncoder[F[A, B, C, D, E, G, H, I, J, K]],
+    decoder:  JsonDecoder[F[A, B, C, D, E, G, H, I, J, K]],
+    classTag: ClassTag[F[A, B, C, D, E, G, H, I, J, K]]
+  ): ZTemporalCodec[F[A, B, C, D, E, G, H, I, J, K]] =
+    new KindN[F[A, B, C, D, E, G, H, I, J, K]](
+      encoder,
+      decoder,
+      classTag.runtimeClass.asInstanceOf[Class[F[A, B, C, D, E, G, H, I, J, K]]],
+      new ZParameterizedType(
+        classTag.runtimeClass,
+        Array(
+          innerA.genericType,
+          innerB.genericType,
+          innerC.genericType,
+          innerD.genericType,
+          innerE.genericType,
+          innerG.genericType,
+          innerH.genericType,
+          innerI.genericType,
+          innerJ.genericType,
+          innerK.genericType
+        )
+      )
+    )
+
+  given kind11[F[_, _, _, _, _, _, _, _, _, _, _], A, B, C, D, E, G, H, I, J, K, L](
+    using
+    innerA:   ZTemporalCodec[A],
+    innerB:   ZTemporalCodec[B],
+    innerC:   ZTemporalCodec[C],
+    innerD:   ZTemporalCodec[D],
+    innerE:   ZTemporalCodec[E],
+    innerG:   ZTemporalCodec[G],
+    innerH:   ZTemporalCodec[H],
+    innerI:   ZTemporalCodec[I],
+    innerJ:   ZTemporalCodec[J],
+    innerK:   ZTemporalCodec[K],
+    innerL:   ZTemporalCodec[L],
+    encoder:  JsonEncoder[F[A, B, C, D, E, G, H, I, J, K, L]],
+    decoder:  JsonDecoder[F[A, B, C, D, E, G, H, I, J, K, L]],
+    classTag: ClassTag[F[A, B, C, D, E, G, H, I, J, K, L]]
+  ): ZTemporalCodec[F[A, B, C, D, E, G, H, I, J, K, L]] =
+    new KindN[F[A, B, C, D, E, G, H, I, J, K, L]](
+      encoder,
+      decoder,
+      classTag.runtimeClass.asInstanceOf[Class[F[A, B, C, D, E, G, H, I, J, K, L]]],
+      new ZParameterizedType(
+        classTag.runtimeClass,
+        Array(
+          innerA.genericType,
+          innerB.genericType,
+          innerC.genericType,
+          innerD.genericType,
+          innerE.genericType,
+          innerG.genericType,
+          innerH.genericType,
+          innerI.genericType,
+          innerJ.genericType,
+          innerK.genericType,
+          innerL.genericType
+        )
+      )
+    )
+
+  given kind12[F[_, _, _, _, _, _, _, _, _, _, _, _], A, B, C, D, E, G, H, I, J, K, L, M](
+    using
+    innerA:   ZTemporalCodec[A],
+    innerB:   ZTemporalCodec[B],
+    innerC:   ZTemporalCodec[C],
+    innerD:   ZTemporalCodec[D],
+    innerE:   ZTemporalCodec[E],
+    innerG:   ZTemporalCodec[G],
+    innerH:   ZTemporalCodec[H],
+    innerI:   ZTemporalCodec[I],
+    innerJ:   ZTemporalCodec[J],
+    innerK:   ZTemporalCodec[K],
+    innerL:   ZTemporalCodec[L],
+    innerM:   ZTemporalCodec[M],
+    encoder:  JsonEncoder[F[A, B, C, D, E, G, H, I, J, K, L, M]],
+    decoder:  JsonDecoder[F[A, B, C, D, E, G, H, I, J, K, L, M]],
+    classTag: ClassTag[F[A, B, C, D, E, G, H, I, J, K, L, M]]
+  ): ZTemporalCodec[F[A, B, C, D, E, G, H, I, J, K, L, M]] =
+    new KindN[F[A, B, C, D, E, G, H, I, J, K, L, M]](
+      encoder,
+      decoder,
+      classTag.runtimeClass.asInstanceOf[Class[F[A, B, C, D, E, G, H, I, J, K, L, M]]],
+      new ZParameterizedType(
+        classTag.runtimeClass,
+        Array(
+          innerA.genericType,
+          innerB.genericType,
+          innerC.genericType,
+          innerD.genericType,
+          innerE.genericType,
+          innerG.genericType,
+          innerH.genericType,
+          innerI.genericType,
+          innerJ.genericType,
+          innerK.genericType,
+          innerL.genericType,
+          innerM.genericType
+        )
+      )
+    )
+
+  given kind13[F[_, _, _, _, _, _, _, _, _, _, _, _, _], A, B, C, D, E, G, H, I, J, K, L, M, N](
+    using
+    innerA:   ZTemporalCodec[A],
+    innerB:   ZTemporalCodec[B],
+    innerC:   ZTemporalCodec[C],
+    innerD:   ZTemporalCodec[D],
+    innerE:   ZTemporalCodec[E],
+    innerG:   ZTemporalCodec[G],
+    innerH:   ZTemporalCodec[H],
+    innerI:   ZTemporalCodec[I],
+    innerJ:   ZTemporalCodec[J],
+    innerK:   ZTemporalCodec[K],
+    innerL:   ZTemporalCodec[L],
+    innerM:   ZTemporalCodec[M],
+    innerN:   ZTemporalCodec[N],
+    encoder:  JsonEncoder[F[A, B, C, D, E, G, H, I, J, K, L, M, N]],
+    decoder:  JsonDecoder[F[A, B, C, D, E, G, H, I, J, K, L, M, N]],
+    classTag: ClassTag[F[A, B, C, D, E, G, H, I, J, K, L, M, N]]
+  ): ZTemporalCodec[F[A, B, C, D, E, G, H, I, J, K, L, M, N]] =
+    new KindN[F[A, B, C, D, E, G, H, I, J, K, L, M, N]](
+      encoder,
+      decoder,
+      classTag.runtimeClass.asInstanceOf[Class[F[A, B, C, D, E, G, H, I, J, K, L, M, N]]],
+      new ZParameterizedType(
+        classTag.runtimeClass,
+        Array(
+          innerA.genericType,
+          innerB.genericType,
+          innerC.genericType,
+          innerD.genericType,
+          innerE.genericType,
+          innerG.genericType,
+          innerH.genericType,
+          innerI.genericType,
+          innerJ.genericType,
+          innerK.genericType,
+          innerL.genericType,
+          innerM.genericType,
+          innerN.genericType
+        )
+      )
+    )
+
+  given kind14[F[_, _, _, _, _, _, _, _, _, _, _, _, _, _], A, B, C, D, E, G, H, I, J, K, L, M, N, O](
+    using
+    innerA:   ZTemporalCodec[A],
+    innerB:   ZTemporalCodec[B],
+    innerC:   ZTemporalCodec[C],
+    innerD:   ZTemporalCodec[D],
+    innerE:   ZTemporalCodec[E],
+    innerG:   ZTemporalCodec[G],
+    innerH:   ZTemporalCodec[H],
+    innerI:   ZTemporalCodec[I],
+    innerJ:   ZTemporalCodec[J],
+    innerK:   ZTemporalCodec[K],
+    innerL:   ZTemporalCodec[L],
+    innerM:   ZTemporalCodec[M],
+    innerN:   ZTemporalCodec[N],
+    innerO:   ZTemporalCodec[O],
+    encoder:  JsonEncoder[F[A, B, C, D, E, G, H, I, J, K, L, M, N, O]],
+    decoder:  JsonDecoder[F[A, B, C, D, E, G, H, I, J, K, L, M, N, O]],
+    classTag: ClassTag[F[A, B, C, D, E, G, H, I, J, K, L, M, N, O]]
+  ): ZTemporalCodec[F[A, B, C, D, E, G, H, I, J, K, L, M, N, O]] =
+    new KindN[F[A, B, C, D, E, G, H, I, J, K, L, M, N, O]](
+      encoder,
+      decoder,
+      classTag.runtimeClass.asInstanceOf[Class[F[A, B, C, D, E, G, H, I, J, K, L, M, N, O]]],
+      new ZParameterizedType(
+        classTag.runtimeClass,
+        Array(
+          innerA.genericType,
+          innerB.genericType,
+          innerC.genericType,
+          innerD.genericType,
+          innerE.genericType,
+          innerG.genericType,
+          innerH.genericType,
+          innerI.genericType,
+          innerJ.genericType,
+          innerK.genericType,
+          innerL.genericType,
+          innerM.genericType,
+          innerN.genericType,
+          innerO.genericType
+        )
+      )
+    )
+
+  given kind15[F[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _], A, B, C, D, E, G, H, I, J, K, L, M, N, O, P](
+    using
+    innerA:   ZTemporalCodec[A],
+    innerB:   ZTemporalCodec[B],
+    innerC:   ZTemporalCodec[C],
+    innerD:   ZTemporalCodec[D],
+    innerE:   ZTemporalCodec[E],
+    innerG:   ZTemporalCodec[G],
+    innerH:   ZTemporalCodec[H],
+    innerI:   ZTemporalCodec[I],
+    innerJ:   ZTemporalCodec[J],
+    innerK:   ZTemporalCodec[K],
+    innerL:   ZTemporalCodec[L],
+    innerM:   ZTemporalCodec[M],
+    innerN:   ZTemporalCodec[N],
+    innerO:   ZTemporalCodec[O],
+    innerP:   ZTemporalCodec[P],
+    encoder:  JsonEncoder[F[A, B, C, D, E, G, H, I, J, K, L, M, N, O, P]],
+    decoder:  JsonDecoder[F[A, B, C, D, E, G, H, I, J, K, L, M, N, O, P]],
+    classTag: ClassTag[F[A, B, C, D, E, G, H, I, J, K, L, M, N, O, P]]
+  ): ZTemporalCodec[F[A, B, C, D, E, G, H, I, J, K, L, M, N, O, P]] =
+    new KindN[F[A, B, C, D, E, G, H, I, J, K, L, M, N, O, P]](
+      encoder,
+      decoder,
+      classTag.runtimeClass.asInstanceOf[Class[F[A, B, C, D, E, G, H, I, J, K, L, M, N, O, P]]],
+      new ZParameterizedType(
+        classTag.runtimeClass,
+        Array(
+          innerA.genericType,
+          innerB.genericType,
+          innerC.genericType,
+          innerD.genericType,
+          innerE.genericType,
+          innerG.genericType,
+          innerH.genericType,
+          innerI.genericType,
+          innerJ.genericType,
+          innerK.genericType,
+          innerL.genericType,
+          innerM.genericType,
+          innerN.genericType,
+          innerO.genericType,
+          innerP.genericType
+        )
+      )
+    )
+
+  given kind16[F[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _], A, B, C, D, E, G, H, I, J, K, L, M, N, O, P, Q](
+    using
+    innerA:   ZTemporalCodec[A],
+    innerB:   ZTemporalCodec[B],
+    innerC:   ZTemporalCodec[C],
+    innerD:   ZTemporalCodec[D],
+    innerE:   ZTemporalCodec[E],
+    innerG:   ZTemporalCodec[G],
+    innerH:   ZTemporalCodec[H],
+    innerI:   ZTemporalCodec[I],
+    innerJ:   ZTemporalCodec[J],
+    innerK:   ZTemporalCodec[K],
+    innerL:   ZTemporalCodec[L],
+    innerM:   ZTemporalCodec[M],
+    innerN:   ZTemporalCodec[N],
+    innerO:   ZTemporalCodec[O],
+    innerP:   ZTemporalCodec[P],
+    innerQ:   ZTemporalCodec[Q],
+    encoder:  JsonEncoder[F[A, B, C, D, E, G, H, I, J, K, L, M, N, O, P, Q]],
+    decoder:  JsonDecoder[F[A, B, C, D, E, G, H, I, J, K, L, M, N, O, P, Q]],
+    classTag: ClassTag[F[A, B, C, D, E, G, H, I, J, K, L, M, N, O, P, Q]]
+  ): ZTemporalCodec[F[A, B, C, D, E, G, H, I, J, K, L, M, N, O, P, Q]] =
+    new KindN[F[A, B, C, D, E, G, H, I, J, K, L, M, N, O, P, Q]](
+      encoder,
+      decoder,
+      classTag.runtimeClass.asInstanceOf[Class[F[A, B, C, D, E, G, H, I, J, K, L, M, N, O, P, Q]]],
+      new ZParameterizedType(
+        classTag.runtimeClass,
+        Array(
+          innerA.genericType,
+          innerB.genericType,
+          innerC.genericType,
+          innerD.genericType,
+          innerE.genericType,
+          innerG.genericType,
+          innerH.genericType,
+          innerI.genericType,
+          innerJ.genericType,
+          innerK.genericType,
+          innerL.genericType,
+          innerM.genericType,
+          innerN.genericType,
+          innerO.genericType,
+          innerP.genericType,
+          innerQ.genericType
+        )
+      )
+    )
+
+  given kind17[F[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _], A, B, C, D, E, G, H, I, J, K, L, M, N, O, P, Q, R](
+    using
+    innerA:   ZTemporalCodec[A],
+    innerB:   ZTemporalCodec[B],
+    innerC:   ZTemporalCodec[C],
+    innerD:   ZTemporalCodec[D],
+    innerE:   ZTemporalCodec[E],
+    innerG:   ZTemporalCodec[G],
+    innerH:   ZTemporalCodec[H],
+    innerI:   ZTemporalCodec[I],
+    innerJ:   ZTemporalCodec[J],
+    innerK:   ZTemporalCodec[K],
+    innerL:   ZTemporalCodec[L],
+    innerM:   ZTemporalCodec[M],
+    innerN:   ZTemporalCodec[N],
+    innerO:   ZTemporalCodec[O],
+    innerP:   ZTemporalCodec[P],
+    innerQ:   ZTemporalCodec[Q],
+    innerR:   ZTemporalCodec[R],
+    encoder:  JsonEncoder[F[A, B, C, D, E, G, H, I, J, K, L, M, N, O, P, Q, R]],
+    decoder:  JsonDecoder[F[A, B, C, D, E, G, H, I, J, K, L, M, N, O, P, Q, R]],
+    classTag: ClassTag[F[A, B, C, D, E, G, H, I, J, K, L, M, N, O, P, Q, R]]
+  ): ZTemporalCodec[F[A, B, C, D, E, G, H, I, J, K, L, M, N, O, P, Q, R]] =
+    new KindN[F[A, B, C, D, E, G, H, I, J, K, L, M, N, O, P, Q, R]](
+      encoder,
+      decoder,
+      classTag.runtimeClass.asInstanceOf[Class[F[A, B, C, D, E, G, H, I, J, K, L, M, N, O, P, Q, R]]],
+      new ZParameterizedType(
+        classTag.runtimeClass,
+        Array(
+          innerA.genericType,
+          innerB.genericType,
+          innerC.genericType,
+          innerD.genericType,
+          innerE.genericType,
+          innerG.genericType,
+          innerH.genericType,
+          innerI.genericType,
+          innerJ.genericType,
+          innerK.genericType,
+          innerL.genericType,
+          innerM.genericType,
+          innerN.genericType,
+          innerO.genericType,
+          innerP.genericType,
+          innerQ.genericType,
+          innerR.genericType
+        )
+      )
+    )
+
+  given kind18[
+    F[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    A,
+    B,
+    C,
+    D,
+    E,
+    G,
+    H,
+    I,
+    J,
+    K,
+    L,
+    M,
+    N,
+    O,
+    P,
+    Q,
+    R,
+    S
+  ](using
+    innerA:   ZTemporalCodec[A],
+    innerB:   ZTemporalCodec[B],
+    innerC:   ZTemporalCodec[C],
+    innerD:   ZTemporalCodec[D],
+    innerE:   ZTemporalCodec[E],
+    innerG:   ZTemporalCodec[G],
+    innerH:   ZTemporalCodec[H],
+    innerI:   ZTemporalCodec[I],
+    innerJ:   ZTemporalCodec[J],
+    innerK:   ZTemporalCodec[K],
+    innerL:   ZTemporalCodec[L],
+    innerM:   ZTemporalCodec[M],
+    innerN:   ZTemporalCodec[N],
+    innerO:   ZTemporalCodec[O],
+    innerP:   ZTemporalCodec[P],
+    innerQ:   ZTemporalCodec[Q],
+    innerR:   ZTemporalCodec[R],
+    innerS:   ZTemporalCodec[S],
+    encoder:  JsonEncoder[F[A, B, C, D, E, G, H, I, J, K, L, M, N, O, P, Q, R, S]],
+    decoder:  JsonDecoder[F[A, B, C, D, E, G, H, I, J, K, L, M, N, O, P, Q, R, S]],
+    classTag: ClassTag[F[A, B, C, D, E, G, H, I, J, K, L, M, N, O, P, Q, R, S]]
+  ): ZTemporalCodec[F[A, B, C, D, E, G, H, I, J, K, L, M, N, O, P, Q, R, S]] =
+    new KindN[F[A, B, C, D, E, G, H, I, J, K, L, M, N, O, P, Q, R, S]](
+      encoder,
+      decoder,
+      classTag.runtimeClass.asInstanceOf[Class[F[A, B, C, D, E, G, H, I, J, K, L, M, N, O, P, Q, R, S]]],
+      new ZParameterizedType(
+        classTag.runtimeClass,
+        Array(
+          innerA.genericType,
+          innerB.genericType,
+          innerC.genericType,
+          innerD.genericType,
+          innerE.genericType,
+          innerG.genericType,
+          innerH.genericType,
+          innerI.genericType,
+          innerJ.genericType,
+          innerK.genericType,
+          innerL.genericType,
+          innerM.genericType,
+          innerN.genericType,
+          innerO.genericType,
+          innerP.genericType,
+          innerQ.genericType,
+          innerR.genericType,
+          innerS.genericType
+        )
+      )
+    )
+
+  given kind19[
+    F[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    A,
+    B,
+    C,
+    D,
+    E,
+    G,
+    H,
+    I,
+    J,
+    K,
+    L,
+    M,
+    N,
+    O,
+    P,
+    Q,
+    R,
+    S,
+    T
+  ](using
+    innerA:   ZTemporalCodec[A],
+    innerB:   ZTemporalCodec[B],
+    innerC:   ZTemporalCodec[C],
+    innerD:   ZTemporalCodec[D],
+    innerE:   ZTemporalCodec[E],
+    innerG:   ZTemporalCodec[G],
+    innerH:   ZTemporalCodec[H],
+    innerI:   ZTemporalCodec[I],
+    innerJ:   ZTemporalCodec[J],
+    innerK:   ZTemporalCodec[K],
+    innerL:   ZTemporalCodec[L],
+    innerM:   ZTemporalCodec[M],
+    innerN:   ZTemporalCodec[N],
+    innerO:   ZTemporalCodec[O],
+    innerP:   ZTemporalCodec[P],
+    innerQ:   ZTemporalCodec[Q],
+    innerR:   ZTemporalCodec[R],
+    innerS:   ZTemporalCodec[S],
+    innerT:   ZTemporalCodec[T],
+    encoder:  JsonEncoder[F[A, B, C, D, E, G, H, I, J, K, L, M, N, O, P, Q, R, S, T]],
+    decoder:  JsonDecoder[F[A, B, C, D, E, G, H, I, J, K, L, M, N, O, P, Q, R, S, T]],
+    classTag: ClassTag[F[A, B, C, D, E, G, H, I, J, K, L, M, N, O, P, Q, R, S, T]]
+  ): ZTemporalCodec[F[A, B, C, D, E, G, H, I, J, K, L, M, N, O, P, Q, R, S, T]] =
+    new KindN[F[A, B, C, D, E, G, H, I, J, K, L, M, N, O, P, Q, R, S, T]](
+      encoder,
+      decoder,
+      classTag.runtimeClass.asInstanceOf[Class[F[A, B, C, D, E, G, H, I, J, K, L, M, N, O, P, Q, R, S, T]]],
+      new ZParameterizedType(
+        classTag.runtimeClass,
+        Array(
+          innerA.genericType,
+          innerB.genericType,
+          innerC.genericType,
+          innerD.genericType,
+          innerE.genericType,
+          innerG.genericType,
+          innerH.genericType,
+          innerI.genericType,
+          innerJ.genericType,
+          innerK.genericType,
+          innerL.genericType,
+          innerM.genericType,
+          innerN.genericType,
+          innerO.genericType,
+          innerP.genericType,
+          innerQ.genericType,
+          innerR.genericType,
+          innerS.genericType,
+          innerT.genericType
+        )
+      )
+    )
+
+  given kind20[
+    F[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    A,
+    B,
+    C,
+    D,
+    E,
+    G,
+    H,
+    I,
+    J,
+    K,
+    L,
+    M,
+    N,
+    O,
+    P,
+    Q,
+    R,
+    S,
+    T,
+    U
+  ](using
+    innerA:   ZTemporalCodec[A],
+    innerB:   ZTemporalCodec[B],
+    innerC:   ZTemporalCodec[C],
+    innerD:   ZTemporalCodec[D],
+    innerE:   ZTemporalCodec[E],
+    innerG:   ZTemporalCodec[G],
+    innerH:   ZTemporalCodec[H],
+    innerI:   ZTemporalCodec[I],
+    innerJ:   ZTemporalCodec[J],
+    innerK:   ZTemporalCodec[K],
+    innerL:   ZTemporalCodec[L],
+    innerM:   ZTemporalCodec[M],
+    innerN:   ZTemporalCodec[N],
+    innerO:   ZTemporalCodec[O],
+    innerP:   ZTemporalCodec[P],
+    innerQ:   ZTemporalCodec[Q],
+    innerR:   ZTemporalCodec[R],
+    innerS:   ZTemporalCodec[S],
+    innerT:   ZTemporalCodec[T],
+    innerU:   ZTemporalCodec[U],
+    encoder:  JsonEncoder[F[A, B, C, D, E, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U]],
+    decoder:  JsonDecoder[F[A, B, C, D, E, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U]],
+    classTag: ClassTag[F[A, B, C, D, E, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U]]
+  ): ZTemporalCodec[F[A, B, C, D, E, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U]] =
+    new KindN[F[A, B, C, D, E, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U]](
+      encoder,
+      decoder,
+      classTag.runtimeClass.asInstanceOf[Class[F[A, B, C, D, E, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U]]],
+      new ZParameterizedType(
+        classTag.runtimeClass,
+        Array(
+          innerA.genericType,
+          innerB.genericType,
+          innerC.genericType,
+          innerD.genericType,
+          innerE.genericType,
+          innerG.genericType,
+          innerH.genericType,
+          innerI.genericType,
+          innerJ.genericType,
+          innerK.genericType,
+          innerL.genericType,
+          innerM.genericType,
+          innerN.genericType,
+          innerO.genericType,
+          innerP.genericType,
+          innerQ.genericType,
+          innerR.genericType,
+          innerS.genericType,
+          innerT.genericType,
+          innerU.genericType
+        )
+      )
+    )
+
+  given kind21[
+    F[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    A,
+    B,
+    C,
+    D,
+    E,
+    G,
+    H,
+    I,
+    J,
+    K,
+    L,
+    M,
+    N,
+    O,
+    P,
+    Q,
+    R,
+    S,
+    T,
+    U,
+    V
+  ](using
+    innerA:   ZTemporalCodec[A],
+    innerB:   ZTemporalCodec[B],
+    innerC:   ZTemporalCodec[C],
+    innerD:   ZTemporalCodec[D],
+    innerE:   ZTemporalCodec[E],
+    innerG:   ZTemporalCodec[G],
+    innerH:   ZTemporalCodec[H],
+    innerI:   ZTemporalCodec[I],
+    innerJ:   ZTemporalCodec[J],
+    innerK:   ZTemporalCodec[K],
+    innerL:   ZTemporalCodec[L],
+    innerM:   ZTemporalCodec[M],
+    innerN:   ZTemporalCodec[N],
+    innerO:   ZTemporalCodec[O],
+    innerP:   ZTemporalCodec[P],
+    innerQ:   ZTemporalCodec[Q],
+    innerR:   ZTemporalCodec[R],
+    innerS:   ZTemporalCodec[S],
+    innerT:   ZTemporalCodec[T],
+    innerU:   ZTemporalCodec[U],
+    innerV:   ZTemporalCodec[V],
+    encoder:  JsonEncoder[F[A, B, C, D, E, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V]],
+    decoder:  JsonDecoder[F[A, B, C, D, E, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V]],
+    classTag: ClassTag[F[A, B, C, D, E, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V]]
+  ): ZTemporalCodec[F[A, B, C, D, E, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V]] =
+    new KindN[F[A, B, C, D, E, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V]](
+      encoder,
+      decoder,
+      classTag.runtimeClass.asInstanceOf[Class[F[A, B, C, D, E, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V]]],
+      new ZParameterizedType(
+        classTag.runtimeClass,
+        Array(
+          innerA.genericType,
+          innerB.genericType,
+          innerC.genericType,
+          innerD.genericType,
+          innerE.genericType,
+          innerG.genericType,
+          innerH.genericType,
+          innerI.genericType,
+          innerJ.genericType,
+          innerK.genericType,
+          innerL.genericType,
+          innerM.genericType,
+          innerN.genericType,
+          innerO.genericType,
+          innerP.genericType,
+          innerQ.genericType,
+          innerR.genericType,
+          innerS.genericType,
+          innerT.genericType,
+          innerU.genericType,
+          innerV.genericType
+        )
+      )
+    )
+
+  given kind22[
+    F[_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    A,
+    B,
+    C,
+    D,
+    E,
+    G,
+    H,
+    I,
+    J,
+    K,
+    L,
+    M,
+    N,
+    O,
+    P,
+    Q,
+    R,
+    S,
+    T,
+    U,
+    V,
+    W
+  ](using
+    innerA:   ZTemporalCodec[A],
+    innerB:   ZTemporalCodec[B],
+    innerC:   ZTemporalCodec[C],
+    innerD:   ZTemporalCodec[D],
+    innerE:   ZTemporalCodec[E],
+    innerG:   ZTemporalCodec[G],
+    innerH:   ZTemporalCodec[H],
+    innerI:   ZTemporalCodec[I],
+    innerJ:   ZTemporalCodec[J],
+    innerK:   ZTemporalCodec[K],
+    innerL:   ZTemporalCodec[L],
+    innerM:   ZTemporalCodec[M],
+    innerN:   ZTemporalCodec[N],
+    innerO:   ZTemporalCodec[O],
+    innerP:   ZTemporalCodec[P],
+    innerQ:   ZTemporalCodec[Q],
+    innerR:   ZTemporalCodec[R],
+    innerS:   ZTemporalCodec[S],
+    innerT:   ZTemporalCodec[T],
+    innerU:   ZTemporalCodec[U],
+    innerV:   ZTemporalCodec[V],
+    innerW:   ZTemporalCodec[W],
+    encoder:  JsonEncoder[F[A, B, C, D, E, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W]],
+    decoder:  JsonDecoder[F[A, B, C, D, E, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W]],
+    classTag: ClassTag[F[A, B, C, D, E, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W]]
+  ): ZTemporalCodec[F[A, B, C, D, E, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W]] =
+    new KindN[F[A, B, C, D, E, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W]](
+      encoder,
+      decoder,
+      classTag.runtimeClass.asInstanceOf[Class[F[A, B, C, D, E, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W]]],
+      new ZParameterizedType(
+        classTag.runtimeClass,
+        Array(
+          innerA.genericType,
+          innerB.genericType,
+          innerC.genericType,
+          innerD.genericType,
+          innerE.genericType,
+          innerG.genericType,
+          innerH.genericType,
+          innerI.genericType,
+          innerJ.genericType,
+          innerK.genericType,
+          innerL.genericType,
+          innerM.genericType,
+          innerN.genericType,
+          innerO.genericType,
+          innerP.genericType,
+          innerQ.genericType,
+          innerR.genericType,
+          innerS.genericType,
+          innerT.genericType,
+          innerU.genericType,
+          innerV.genericType,
+          innerW.genericType
+        )
+      )
+    )
+
 }
 
 /** Ground-kind fallback. Lower priority than the generic derivations so that parameterized types get precise
   * `ParameterizedType` keys instead of the raw class.
   */
 private[json] trait LowPriorityZTemporalCodecInstances1 {
-  given kind0[A](using enc: JsonEncoder[A], dec: JsonDecoder[A], ct: ClassTag[A]): ZTemporalCodec[A] =
-    new ZTemporalCodec.Kind0[A](enc, dec)
+  given kind0[A](using encoder: JsonEncoder[A], decoder: JsonDecoder[A], classTag: ClassTag[A]): ZTemporalCodec[A] =
+    new ZTemporalCodec.Kind0[A](encoder, decoder)
 }

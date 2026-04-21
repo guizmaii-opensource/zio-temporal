@@ -80,6 +80,35 @@ class ZTemporalCodecSpec extends AnyWordSpec with Matchers {
       a should not equal ZTemporalCodec[List[Bar]].genericType
     }
 
+    "ParameterizedType.equals is reflexive and symmetric with different instances of the same type" in {
+      val a = ZTemporalCodec[Map[String, Foo]].genericType
+      val b = ZTemporalCodec[Map[String, Foo]].genericType
+      (a eq b) shouldBe false // not same reference
+      a shouldEqual b
+      b shouldEqual a
+    }
+
+    "ParameterizedType.hashCode is consistent with equals" in {
+      val a = ZTemporalCodec[List[Foo]].genericType
+      val b = ZTemporalCodec[List[Foo]].genericType
+      a.hashCode shouldEqual b.hashCode
+    }
+
+    "ParameterizedType.hashCode differs for different type arguments" in {
+      val listFoo = ZTemporalCodec[List[Foo]].genericType
+      val listBar = ZTemporalCodec[List[Bar]].genericType
+      // not strictly required by the contract, but a structural hash should almost always differ here
+      listFoo.hashCode should not equal listBar.hashCode
+    }
+
+    "ParameterizedType.toString renders in Scala bracket notation" in {
+      val listFoo = ZTemporalCodec[List[Foo]].genericType.toString
+      listFoo should include("scala.collection.immutable.List[")
+      listFoo should endWith("]")
+      listFoo should not include "<"
+      listFoo should not include ">"
+    }
+
     "roundtrips an Option[Foo]" in {
       val c = ZTemporalCodec[Option[Foo]]
       c.decoder.decodeJson(c.encoder.encodeJson(Some(Foo(1, "a")), None)) shouldEqual Right(Some(Foo(1, "a")))
