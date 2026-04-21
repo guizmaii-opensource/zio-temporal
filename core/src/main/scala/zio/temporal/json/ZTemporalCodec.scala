@@ -95,6 +95,18 @@ object ZTemporalCodec extends LowPriorityZTemporalCodecInstances0 with LowPriori
     new Kind0[Unit](encoder, decoder)
   }
 
+  /** Bridge: when a `JsonCodec[A]` is in scope (e.g. from `final case class Foo(...) derives JsonCodec`), expose its
+    * encoder as a `JsonEncoder[A]`. Lets zio-json's generic combinators (`JsonEncoder.list`, `JsonEncoder.option`, …)
+    * find what they need without forcing users to hand-write a separate `given JsonEncoder[Foo] = jc.encoder`.
+    *
+    * Intentionally generic so it stays less-specific than zio-json's own `JsonEncoder.int` etc. — Scala's
+    * given-specificity rules prefer the non-generic instance for primitives, avoiding ambiguity.
+    */
+  given jsonEncoderFromJsonCodec[A](using jc: zio.json.JsonCodec[A]): JsonEncoder[A] = jc.encoder
+
+  /** Bridge counterpart to [[jsonEncoderFromJsonCodec]]. */
+  given jsonDecoderFromJsonCodec[A](using jc: zio.json.JsonCodec[A]): JsonDecoder[A] = jc.decoder
+
   /** Concrete implementation of a `ZTemporalCodec[A]` with equality based on rawType + type arguments.
     *
     * We avoid leaking anonymous `ParameterizedType` subclasses into the registry; those don't implement `equals` and
@@ -147,11 +159,11 @@ object ZTemporalCodec extends LowPriorityZTemporalCodecInstances0 with LowPriori
 private[json] trait LowPriorityZTemporalCodecInstances0 {
   import ZTemporalCodec.{KindN, ZParameterizedType}
 
-  implicit def kind1[F[_], A](
-    implicit inner: ZTemporalCodec[A],
-    enc:            JsonEncoder[F[A]],
-    dec:            JsonDecoder[F[A]],
-    ct:             ClassTag[F[A]]
+  given kind1[F[_], A](
+    using inner: ZTemporalCodec[A],
+    enc:         JsonEncoder[F[A]],
+    dec:         JsonDecoder[F[A]],
+    ct:          ClassTag[F[A]]
   ): ZTemporalCodec[F[A]] =
     new KindN[F[A]](
       enc,
@@ -160,12 +172,12 @@ private[json] trait LowPriorityZTemporalCodecInstances0 {
       new ZParameterizedType(ct.runtimeClass, Array(inner.genericType))
     )
 
-  implicit def kind2[F[_, _], A, B](
-    implicit innerA: ZTemporalCodec[A],
-    innerB:          ZTemporalCodec[B],
-    enc:             JsonEncoder[F[A, B]],
-    dec:             JsonDecoder[F[A, B]],
-    ct:              ClassTag[F[A, B]]
+  given kind2[F[_, _], A, B](
+    using innerA: ZTemporalCodec[A],
+    innerB:       ZTemporalCodec[B],
+    enc:          JsonEncoder[F[A, B]],
+    dec:          JsonDecoder[F[A, B]],
+    ct:           ClassTag[F[A, B]]
   ): ZTemporalCodec[F[A, B]] =
     new KindN[F[A, B]](
       enc,
@@ -174,13 +186,13 @@ private[json] trait LowPriorityZTemporalCodecInstances0 {
       new ZParameterizedType(ct.runtimeClass, Array(innerA.genericType, innerB.genericType))
     )
 
-  implicit def kind3[F[_, _, _], A, B, C](
-    implicit innerA: ZTemporalCodec[A],
-    innerB:          ZTemporalCodec[B],
-    innerC:          ZTemporalCodec[C],
-    enc:             JsonEncoder[F[A, B, C]],
-    dec:             JsonDecoder[F[A, B, C]],
-    ct:              ClassTag[F[A, B, C]]
+  given kind3[F[_, _, _], A, B, C](
+    using innerA: ZTemporalCodec[A],
+    innerB:       ZTemporalCodec[B],
+    innerC:       ZTemporalCodec[C],
+    enc:          JsonEncoder[F[A, B, C]],
+    dec:          JsonDecoder[F[A, B, C]],
+    ct:           ClassTag[F[A, B, C]]
   ): ZTemporalCodec[F[A, B, C]] =
     new KindN[F[A, B, C]](
       enc,
@@ -192,14 +204,14 @@ private[json] trait LowPriorityZTemporalCodecInstances0 {
       )
     )
 
-  implicit def kind4[F[_, _, _, _], A, B, C, D](
-    implicit innerA: ZTemporalCodec[A],
-    innerB:          ZTemporalCodec[B],
-    innerC:          ZTemporalCodec[C],
-    innerD:          ZTemporalCodec[D],
-    enc:             JsonEncoder[F[A, B, C, D]],
-    dec:             JsonDecoder[F[A, B, C, D]],
-    ct:              ClassTag[F[A, B, C, D]]
+  given kind4[F[_, _, _, _], A, B, C, D](
+    using innerA: ZTemporalCodec[A],
+    innerB:       ZTemporalCodec[B],
+    innerC:       ZTemporalCodec[C],
+    innerD:       ZTemporalCodec[D],
+    enc:          JsonEncoder[F[A, B, C, D]],
+    dec:          JsonDecoder[F[A, B, C, D]],
+    ct:           ClassTag[F[A, B, C, D]]
   ): ZTemporalCodec[F[A, B, C, D]] =
     new KindN[F[A, B, C, D]](
       enc,
@@ -211,15 +223,15 @@ private[json] trait LowPriorityZTemporalCodecInstances0 {
       )
     )
 
-  implicit def kind5[F[_, _, _, _, _], A, B, C, D, E](
-    implicit innerA: ZTemporalCodec[A],
-    innerB:          ZTemporalCodec[B],
-    innerC:          ZTemporalCodec[C],
-    innerD:          ZTemporalCodec[D],
-    innerE:          ZTemporalCodec[E],
-    enc:             JsonEncoder[F[A, B, C, D, E]],
-    dec:             JsonDecoder[F[A, B, C, D, E]],
-    ct:              ClassTag[F[A, B, C, D, E]]
+  given kind5[F[_, _, _, _, _], A, B, C, D, E](
+    using innerA: ZTemporalCodec[A],
+    innerB:       ZTemporalCodec[B],
+    innerC:       ZTemporalCodec[C],
+    innerD:       ZTemporalCodec[D],
+    innerE:       ZTemporalCodec[E],
+    enc:          JsonEncoder[F[A, B, C, D, E]],
+    dec:          JsonDecoder[F[A, B, C, D, E]],
+    ct:           ClassTag[F[A, B, C, D, E]]
   ): ZTemporalCodec[F[A, B, C, D, E]] =
     new KindN[F[A, B, C, D, E]](
       enc,
@@ -231,16 +243,16 @@ private[json] trait LowPriorityZTemporalCodecInstances0 {
       )
     )
 
-  implicit def kind6[F[_, _, _, _, _, _], A, B, C, D, E, G](
-    implicit innerA: ZTemporalCodec[A],
-    innerB:          ZTemporalCodec[B],
-    innerC:          ZTemporalCodec[C],
-    innerD:          ZTemporalCodec[D],
-    innerE:          ZTemporalCodec[E],
-    innerG:          ZTemporalCodec[G],
-    enc:             JsonEncoder[F[A, B, C, D, E, G]],
-    dec:             JsonDecoder[F[A, B, C, D, E, G]],
-    ct:              ClassTag[F[A, B, C, D, E, G]]
+  given kind6[F[_, _, _, _, _, _], A, B, C, D, E, G](
+    using innerA: ZTemporalCodec[A],
+    innerB:       ZTemporalCodec[B],
+    innerC:       ZTemporalCodec[C],
+    innerD:       ZTemporalCodec[D],
+    innerE:       ZTemporalCodec[E],
+    innerG:       ZTemporalCodec[G],
+    enc:          JsonEncoder[F[A, B, C, D, E, G]],
+    dec:          JsonDecoder[F[A, B, C, D, E, G]],
+    ct:           ClassTag[F[A, B, C, D, E, G]]
   ): ZTemporalCodec[F[A, B, C, D, E, G]] =
     new KindN[F[A, B, C, D, E, G]](
       enc,
@@ -259,17 +271,17 @@ private[json] trait LowPriorityZTemporalCodecInstances0 {
       )
     )
 
-  implicit def kind7[F[_, _, _, _, _, _, _], A, B, C, D, E, G, H](
-    implicit innerA: ZTemporalCodec[A],
-    innerB:          ZTemporalCodec[B],
-    innerC:          ZTemporalCodec[C],
-    innerD:          ZTemporalCodec[D],
-    innerE:          ZTemporalCodec[E],
-    innerG:          ZTemporalCodec[G],
-    innerH:          ZTemporalCodec[H],
-    enc:             JsonEncoder[F[A, B, C, D, E, G, H]],
-    dec:             JsonDecoder[F[A, B, C, D, E, G, H]],
-    ct:              ClassTag[F[A, B, C, D, E, G, H]]
+  given kind7[F[_, _, _, _, _, _, _], A, B, C, D, E, G, H](
+    using innerA: ZTemporalCodec[A],
+    innerB:       ZTemporalCodec[B],
+    innerC:       ZTemporalCodec[C],
+    innerD:       ZTemporalCodec[D],
+    innerE:       ZTemporalCodec[E],
+    innerG:       ZTemporalCodec[G],
+    innerH:       ZTemporalCodec[H],
+    enc:          JsonEncoder[F[A, B, C, D, E, G, H]],
+    dec:          JsonDecoder[F[A, B, C, D, E, G, H]],
+    ct:           ClassTag[F[A, B, C, D, E, G, H]]
   ): ZTemporalCodec[F[A, B, C, D, E, G, H]] =
     new KindN[F[A, B, C, D, E, G, H]](
       enc,
@@ -294,10 +306,6 @@ private[json] trait LowPriorityZTemporalCodecInstances0 {
   * `ParameterizedType` keys instead of the raw class.
   */
 private[json] trait LowPriorityZTemporalCodecInstances1 {
-  implicit def kind0[A](
-    implicit enc: JsonEncoder[A],
-    dec:          JsonDecoder[A],
-    ct:           ClassTag[A]
-  ): ZTemporalCodec[A] =
+  given kind0[A](using enc: JsonEncoder[A], dec: JsonDecoder[A], ct: ClassTag[A]): ZTemporalCodec[A] =
     new ZTemporalCodec.Kind0[A](enc, dec)
 }

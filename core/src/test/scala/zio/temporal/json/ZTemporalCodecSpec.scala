@@ -2,7 +2,7 @@ package zio.temporal.json
 
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-import zio.json.{DeriveJsonDecoder, DeriveJsonEncoder, JsonDecoder, JsonEncoder}
+import zio.json.{DeriveJsonDecoder, DeriveJsonEncoder, JsonCodec, JsonDecoder, JsonEncoder}
 
 import java.time.Instant
 import java.util.UUID
@@ -84,30 +84,41 @@ class ZTemporalCodecSpec extends AnyWordSpec with Matchers {
       c.decoder.decodeJson(c.encoder.encodeJson(r, None)) shouldEqual Right(r)
       c.decoder.decodeJson(c.encoder.encodeJson(k, None)) shouldEqual Right(k)
     }
+
+    "`derives ZTemporalCodec` on a case class works end-to-end" in {
+      val c = ZTemporalCodec[DerivedType]
+      val v = DerivedType(1, "alice")
+      c.encoder.encodeJson(v, None).toString shouldEqual """{"id":1,"name":"alice"}"""
+      c.decoder.decodeJson(c.encoder.encodeJson(v, None)) shouldEqual Right(v)
+    }
+
+    "`derives ZTemporalCodec` on a sealed trait works end-to-end" in {
+      val c               = ZTemporalCodec[DerivedShape]
+      val a: DerivedShape = DerivedShape.A(42)
+      val b: DerivedShape = DerivedShape.B("hi")
+      c.decoder.decodeJson(c.encoder.encodeJson(a, None)) shouldEqual Right(a)
+      c.decoder.decodeJson(c.encoder.encodeJson(b, None)) shouldEqual Right(b)
+    }
   }
 }
 
-// Fixture types
+// Fixture types — prove `derives JsonCodec` is enough end-to-end.
 
-final case class Foo(x: Int, y: String)
+final case class Foo(x: Int, y: String) derives JsonCodec
 
-object Foo {
-  given JsonEncoder[Foo] = DeriveJsonEncoder.gen[Foo]
-  given JsonDecoder[Foo] = DeriveJsonDecoder.gen[Foo]
-}
+final case class Bar(z: Boolean) derives JsonCodec
 
-final case class Bar(z: Boolean)
-
-object Bar {
-  given JsonEncoder[Bar] = DeriveJsonEncoder.gen[Bar]
-  given JsonDecoder[Bar] = DeriveJsonDecoder.gen[Bar]
-}
-
-sealed trait Shape
+sealed trait Shape derives JsonCodec
 object Shape {
   final case class Rectangle(w: Double, h: Double) extends Shape
   final case class Circle(r: Double)               extends Shape
+}
 
-  given JsonEncoder[Shape] = DeriveJsonEncoder.gen[Shape]
-  given JsonDecoder[Shape] = DeriveJsonDecoder.gen[Shape]
+// Derives ZTemporalCodec directly — should work via the inline `derived` in the companion.
+final case class DerivedType(id: Int, name: String) derives ZTemporalCodec
+
+sealed trait DerivedShape derives ZTemporalCodec
+object DerivedShape {
+  final case class A(n: Int)    extends DerivedShape
+  final case class B(s: String) extends DerivedShape
 }

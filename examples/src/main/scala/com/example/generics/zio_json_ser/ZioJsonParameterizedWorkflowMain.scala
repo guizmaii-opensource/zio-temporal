@@ -1,50 +1,31 @@
-package com.example.generics.jackson_ser
+package com.example.generics.zio_json_ser
 
-import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 import zio._
+import zio.json.JsonCodec
 import zio.logging.backend.SLF4J
 import zio.temporal._
+import zio.temporal.json.CodecRegistry
 import zio.temporal.worker._
 import zio.temporal.workflow._
 import scala.reflect.ClassTag
 
-// NOTE: jackson (de)serialization won't work without additional annotations
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
-@JsonSubTypes(
-  Array(
-    new JsonSubTypes.Type(value = classOf[ChildWorkflowInput.Soda], name = "Soda"),
-    new JsonSubTypes.Type(value = classOf[ChildWorkflowInput.Juice], name = "Juice")
-  )
-)
-sealed trait ChildWorkflowInput
+sealed trait ChildWorkflowInput derives JsonCodec
 object ChildWorkflowInput {
-
-  case class Soda(kind: String)               extends ChildWorkflowInput
-  case class Juice(kind: String, volume: Int) extends ChildWorkflowInput
+  case class Soda(kind: String) extends ChildWorkflowInput derives JsonCodec
+  case class Juice(kind: String, volume: Int) extends ChildWorkflowInput derives JsonCodec
 }
 
-// NOTE: temporal won't deserialize correctly without the upper-bound type
 trait ParameterizedChildWorkflow[Input <: ChildWorkflowInput] {
   @workflowMethod
   def childTask(input: Input): Unit
 }
 
-// NOTE: jackson (de)serialization won't work without additional annotations
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
-@JsonSubTypes(
-  Array(
-    new JsonSubTypes.Type(value = classOf[WorkflowInput.Soda], name = "Soda"),
-    new JsonSubTypes.Type(value = classOf[WorkflowInput.Juice], name = "Juice")
-  )
-)
-sealed trait WorkflowInput
+sealed trait WorkflowInput derives JsonCodec
 object WorkflowInput {
-
-  case class Soda(kind: String)  extends WorkflowInput
-  case class Juice(kind: String) extends WorkflowInput
+  case class Soda(kind: String)  extends WorkflowInput derives JsonCodec
+  case class Juice(kind: String) extends WorkflowInput derives JsonCodec
 }
 
-// NOTE: temporal won't deserialize correctly without the upper-bound type
 trait ParameterizedWorkflow[Input <: WorkflowInput] {
   @workflowMethod
   def parentTask(input: Input): Unit
@@ -144,8 +125,8 @@ class JuiceWorkflowImpl
     ChildWorkflowInput.Juice(input.kind, randomData)
 }
 
-object JacksonParameterizedWorkflowMain extends ZIOAppDefault {
-  val TaskQueue = "jackson-parameterized"
+object ZioJsonParameterizedWorkflowMain extends ZIOAppDefault {
+  val TaskQueue = "zio-json-parameterized"
 
   private def runWorkflow[Input <: WorkflowInput](
     stub:  ZWorkflowStub.Of[ParameterizedWorkflow[Input]]
@@ -171,13 +152,13 @@ object JacksonParameterizedWorkflowMain extends ZIOAppDefault {
         uuid   <- ZIO.randomWith(_.nextUUID)
         sodaWf <- client.newWorkflowStub[SodaWorkflow](
                     ZWorkflowOptions
-                      .withWorkflowId(s"jackson-soda/$uuid")
+                      .withWorkflowId(s"zio-json-soda/$uuid")
                       .withTaskQueue(TaskQueue)
                   )
 
         juiceWf <- client.newWorkflowStub[JuiceWorkflow](
                      ZWorkflowOptions
-                       .withWorkflowId(s"jackson-juice/$uuid")
+                       .withWorkflowId(s"zio-json-juice/$uuid")
                        .withTaskQueue(TaskQueue)
                    )
 
@@ -203,7 +184,14 @@ object JacksonParameterizedWorkflowMain extends ZIOAppDefault {
         ZWorkerFactory.make,
         // options
         ZWorkflowServiceStubsOptions.make,
-        ZWorkflowClientOptions.make,
+        ZWorkflowClientOptions.make @@
+          ZWorkflowClientOptions.withCodecRegistry(
+            new CodecRegistry()
+              .addInterface[SodaWorkflow]
+              .addInterface[SodaChildWorkflow]
+              .addInterface[JuiceWorkflow]
+              .addInterface[JuiceChildWorkflow]
+          ),
         ZWorkerFactoryOptions.make
       )
   }
