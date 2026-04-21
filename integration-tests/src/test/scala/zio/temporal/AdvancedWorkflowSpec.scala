@@ -69,11 +69,11 @@ object AdvancedWorkflowSpec extends BaseTemporalSpec {
             _ <- ZWorkflowStub.signal(
                    stub.resume()
                  )
-            result <- stub.result[Either[List[String], Triple[Option[Int], Set[UUID], Boolean]]]
+            result <- stub.result[Either[List[String], NestedTriple[Option[Int], Set[UUID], Boolean]]]
           } yield {
             assertTrue(
               result == Right(
-                Triple(
+                NestedTriple(
                   first = Option.empty[Int],
                   second = Set(
                     UUID.fromString("8858bba1-3193-4c68-8e0e-5e29caeac210"),

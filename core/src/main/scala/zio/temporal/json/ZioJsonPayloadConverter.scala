@@ -47,9 +47,21 @@ final class ZioJsonPayloadConverter(registry: CodecRegistry) extends PayloadConv
         )
     }
 
-  /** Encodes a single value into the given `Write`. Looks up the encoder by the value's runtime class via the registry;
-    * falls back to per-element dispatch for generic containers (see [[encodeContainer]]) since every `List[X]` shares
-    * the same raw runtime class and no single registered encoder can be correct for all of them.
+  /** Encodes a single value into the given `Write`. Resolution order:
+    *
+    *   1. `byClass` walk via [[CodecRegistry.encoderForClass]] — exact class match, superclass chain, then interfaces.
+    *   2. Container escape hatch via [[encodeContainer]] — recurses per element for `List`/`Vector`/`Set`/`Map`/
+    *      `Option`, since every `List[X]` shares the same raw class and no single registered encoder is correct for all
+    *      of them.
+    *   3. Parameterized-type fallback — consults `byRawClass` for user-defined generics (`Triple[A, B, C]`). If exactly
+    *      one parameterized instantiation is registered for the value's raw class, its encoder is used. If two or more
+    *      are registered, we fail with a clear error rather than guess: encoding `Triple[Foo, Int, String]` with a
+    *      `Triple[Option[Int], Set[UUID], Boolean]` encoder would call the wrong field encoders and either throw
+    *      mid-stream or silently corrupt the wire format depending on field-shape alignment.
+    *
+    * The container escape-hatch is checked '''before''' the `byRawClass` fallback so that container registrations don't
+    * prevent per-element dispatch (see the `List[User]` + `List[Org]` regression tests in
+    * `ZioJsonPayloadConverterSpec`).
     */
   private def encodeValue(v: Any, out: zio.json.internal.Write): Unit = {
     val cls     = v.getClass
@@ -57,18 +69,36 @@ final class ZioJsonPayloadConverter(registry: CodecRegistry) extends PayloadConv
     if (encoder ne null) {
       encoder.asInstanceOf[JsonEncoder[Any]].unsafeEncode(v, None, out)
     } else if (!encodeContainer(v, out)) {
-      throw new DataConverterException(
-        s"No ZTemporalCodec registered for runtime class `${cls.getName}`.\n" +
-          "Likely causes:\n" +
-          "  1. A workflow or activity interface using this type was not registered with the client.\n" +
-          "     Fix: `ZWorkflowClientOptions.make @@ ZWorkflowClientOptions.withCodecRegistry(\n" +
-          "       new CodecRegistry().addInterface[YourWorkflow].addInterface[YourActivity])`,\n" +
-          "     or on the type itself: `final case class YourType(...) derives ZTemporalCodec`.\n" +
-          "  2. An untyped stub (`ZWorkflowStub.Untyped` / `ZActivityStub.Untyped`) is being used, which\n" +
-          "     bypasses the compile-time codec gate. Pre-register any types you pass through untyped\n" +
-          "     stubs with `registry.register(ZTemporalCodec[YourType])`.\n" +
-          s"Currently registered: [${registry.registeredTypeNames.mkString(", ")}]"
-      )
+      val candidates = registry.parameterizedCandidatesForClass(cls)
+      if ((candidates ne null) && candidates.size() == 1) {
+        candidates.get(0).encoder.asInstanceOf[JsonEncoder[Any]].unsafeEncode(v, None, out)
+      } else if ((candidates ne null) && candidates.size() > 1) {
+        val listed = {
+          import scala.jdk.CollectionConverters._
+          candidates.asScala.map(_.genericType.getTypeName).mkString(", ")
+        }
+        throw new DataConverterException(
+          s"Ambiguous ZTemporalCodec for runtime class `${cls.getName}`: more than one parameterized\n" +
+            s"instantiation is registered for the same raw class, so the encode path cannot choose deterministically\n" +
+            s"from just `v.getClass`. Registered candidates: [$listed].\n" +
+            "Fix: give each generic instantiation a distinct wrapper case class (e.g. replace\n" +
+            "`Triple[Foo, Int, String]` and `Triple[Option[Int], Set[UUID], Boolean]` with two named case classes),\n" +
+            "or ensure only one instantiation of this generic type is reachable through the same client/worker."
+        )
+      } else {
+        throw new DataConverterException(
+          s"No ZTemporalCodec registered for runtime class `${cls.getName}`.\n" +
+            "Likely causes:\n" +
+            "  1. A workflow or activity interface using this type was not registered with the client.\n" +
+            "     Fix: `ZWorkflowClientOptions.make @@ ZWorkflowClientOptions.withCodecRegistry(\n" +
+            "       new CodecRegistry().addInterface[YourWorkflow].addInterface[YourActivity])`,\n" +
+            "     or on the type itself: `final case class YourType(...) derives ZTemporalCodec`.\n" +
+            "  2. An untyped stub (`ZWorkflowStub.Untyped` / `ZActivityStub.Untyped`) is being used, which\n" +
+            "     bypasses the compile-time codec gate. Pre-register any types you pass through untyped\n" +
+            "     stubs with `registry.register(ZTemporalCodec[YourType])`.\n" +
+            s"Currently registered: [${registry.registeredTypeNames.mkString(", ")}]"
+        )
+      }
     }
   }
 

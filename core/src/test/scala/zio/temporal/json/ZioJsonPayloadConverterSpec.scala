@@ -5,7 +5,7 @@ import io.temporal.api.common.v1.Payload
 import io.temporal.common.converter.DataConverterException
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-import zio.json.JsonCodec
+import zio.json.{DeriveJsonCodec, JsonCodec}
 
 import java.nio.charset.StandardCharsets
 
@@ -414,6 +414,105 @@ class ZioJsonPayloadConverterSpec extends AnyWordSpec with Matchers {
       val r = new CodecRegistry()
       r.decoderForClassHierarchy(classOf[Drink.Soda]) shouldBe null
     }
+  }
+
+  "ZioJsonPayloadConverter — user-defined generic case class (Triple-style)" should {
+
+    // Regression for https://…/PR#203: a user-defined generic case class `Triple[A, B, C]` has no
+    // container escape hatch on the encode path (it isn't an `Iterable`/`Option`/`Map`). The registry keeps
+    // parameterized codecs out of `byClass` (see scaladoc there), so `encoderForClass` misses. This section
+    // pins the `byRawClass` fallback behaviour that resolves this.
+
+    import TripleFixture.Triple
+
+    "round-trip when exactly one parameterized instantiation is registered" in {
+      val registry = new CodecRegistry()
+        .register(ZTemporalCodec[Int])
+        .register(ZTemporalCodec[String])
+        .register(ZTemporalCodec[Boolean])
+        .register(ZTemporalCodec[Triple[Int, String, Boolean]])
+      val converter = new ZioJsonPayloadConverter(registry)
+
+      val value   = Triple(1, "x", true)
+      val payload = converter.toData(value).orElseThrow(() => new AssertionError("expected non-empty"))
+      payload.getData.toStringUtf8 shouldEqual """{"first":1,"second":"x","third":true}"""
+
+      val tripleCodec = ZTemporalCodec[Triple[Int, String, Boolean]]
+      val decoded     = converter.fromData(
+        payload,
+        classOf[Triple[Int, String, Boolean]].asInstanceOf[Class[Triple[Int, String, Boolean]]],
+        tripleCodec.genericType
+      )
+      decoded shouldEqual value
+    }
+
+    "fail encode with a clear ambiguity message when two parameterized instantiations share a raw class" in {
+      val registry = new CodecRegistry()
+        .register(ZTemporalCodec[Int])
+        .register(ZTemporalCodec[Long])
+        .register(ZTemporalCodec[String])
+        .register(ZTemporalCodec[Boolean])
+        .register(ZTemporalCodec[Triple[Int, String, Boolean]])
+        .register(ZTemporalCodec[Triple[Long, String, Boolean]])
+      val converter = new ZioJsonPayloadConverter(registry)
+
+      val thrown = the[DataConverterException] thrownBy converter.toData(Triple(1, "x", true))
+      thrown.getMessage should include("Ambiguous ZTemporalCodec")
+      thrown.getMessage should include(classOf[Triple[_, _, _]].getName)
+      // Both candidate type names should surface so the user knows which to restructure.
+      // ClassTag-based `genericType` reports Scala primitive classes as their erased primitive counterparts
+      // (`int`, `long`), so we assert on those.
+      thrown.getMessage should (include("int") and include("long"))
+    }
+
+    "decode path still dispatches on full generic Type (unaffected by the fallback)" in {
+      val registry = new CodecRegistry()
+        .register(ZTemporalCodec[Int])
+        .register(ZTemporalCodec[Long])
+        .register(ZTemporalCodec[String])
+        .register(ZTemporalCodec[Boolean])
+        .register(ZTemporalCodec[Triple[Int, String, Boolean]])
+        .register(ZTemporalCodec[Triple[Long, String, Boolean]])
+      val converter = new ZioJsonPayloadConverter(registry)
+
+      val payload = Payload
+        .newBuilder()
+        .putMetadata("encoding", ByteString.copyFromUtf8("json/zio"))
+        .setData(ByteString.copyFromUtf8("""{"first":7,"second":"x","third":true}"""))
+        .build()
+
+      val codec        = ZTemporalCodec[Triple[Long, String, Boolean]]
+      val decodedLongs = converter.fromData(
+        payload,
+        classOf[Triple[Long, String, Boolean]].asInstanceOf[Class[Triple[Long, String, Boolean]]],
+        codec.genericType
+      )
+      decodedLongs shouldEqual Triple(7L, "x", true)
+    }
+
+    "container dispatch still fires for List even when raw-class fallback exists for another generic" in {
+      // Container escape hatch must be consulted BEFORE the raw-class fallback. If we reversed the order,
+      // registering a `Triple` wouldn't affect lists — but registering a `List[A]` would be matched via the
+      // `byRawClass` path too and bypass per-element dispatch. This test pins the ordering.
+      val registry = new CodecRegistry()
+        .register(ZTemporalCodec[Int])
+        .register(ZTemporalCodec[String])
+        .register(ZTemporalCodec[Boolean])
+        .register(ZTemporalCodec[Triple[Int, String, Boolean]])
+      val converter = new ZioJsonPayloadConverter(registry)
+
+      val users   = List(1, 2, 3)
+      val payload = converter.toData(users).orElseThrow(() => new AssertionError("list of ints"))
+      payload.getData.toStringUtf8 shouldEqual "[1,2,3]"
+    }
+  }
+}
+
+object TripleFixture {
+  final case class Triple[A, B, C](first: A, second: B, third: C)
+  object Triple {
+    given [A: JsonCodec, B: JsonCodec, C: JsonCodec]: JsonCodec[Triple[A, B, C]] =
+      DeriveJsonCodec.gen[Triple[A, B, C]]
   }
 }
 
