@@ -2,7 +2,16 @@ package zio.temporal.json
 
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-import zio.json.{DeriveJsonDecoder, DeriveJsonEncoder, JsonCodec, JsonDecoder, JsonEncoder, jsonField, jsonHint}
+import zio.json.{
+  DeriveJsonDecoder,
+  DeriveJsonEncoder,
+  JsonCodec,
+  JsonDecoder,
+  JsonEncoder,
+  jsonDiscriminator,
+  jsonField,
+  jsonHint
+}
 
 import java.time.Instant
 import java.util.UUID
@@ -123,6 +132,18 @@ class ZTemporalCodecSpec extends AnyWordSpec with Matchers {
       c.encoder.encodeJson(created, None).toString shouldEqual """{"CREATED":{"id":42}}"""
       c.decoder.decodeJson("""{"CREATED":{"id":42}}""") shouldEqual Right(created)
     }
+
+    "respects zio-json `@jsonDiscriminator(\"type\")` to use an internal discriminator field" in {
+      val c                           = ZTemporalCodec[DiscriminatedEvent]
+      val created: DiscriminatedEvent = DiscriminatedEvent.Created(42)
+      val deleted: DiscriminatedEvent = DiscriminatedEvent.Deleted(7)
+      // With `@jsonDiscriminator("type")`, subtypes encode with a `"type"` field inside the object rather than
+      // as an outer `{"Subtype":{...}}` wrapper — matching the shape the old Jackson integration used.
+      c.encoder.encodeJson(created, None).toString shouldEqual """{"type":"Created","id":42}"""
+      c.encoder.encodeJson(deleted, None).toString shouldEqual """{"type":"Deleted","id":7}"""
+      c.decoder.decodeJson("""{"type":"Created","id":42}""") shouldEqual Right(created)
+      c.decoder.decodeJson("""{"type":"Deleted","id":7}""") shouldEqual Right(deleted)
+    }
   }
 }
 
@@ -158,4 +179,11 @@ sealed trait AnnotatedEvent derives ZTemporalCodec
 object AnnotatedEvent {
   @jsonHint("CREATED") final case class Created(id: Int) extends AnnotatedEvent
   @jsonHint("DELETED") final case class Deleted(id: Int) extends AnnotatedEvent
+}
+
+@jsonDiscriminator("type")
+sealed trait DiscriminatedEvent derives ZTemporalCodec
+object DiscriminatedEvent {
+  final case class Created(id: Int) extends DiscriminatedEvent
+  final case class Deleted(id: Int) extends DiscriminatedEvent
 }

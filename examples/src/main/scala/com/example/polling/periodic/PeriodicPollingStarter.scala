@@ -3,6 +3,7 @@ package com.example.polling.periodic
 import zio._
 import zio.temporal._
 import zio.temporal.activity.ZActivityRunOptions
+import zio.temporal.json.CodecRegistry
 import zio.temporal.worker._
 import zio.temporal.workflow._
 import zio.logging.backend.SLF4J
@@ -50,7 +51,13 @@ object PeriodicPollingStarter extends ZIOAppDefault {
     program
       .provideSome[Scope](
         ZWorkflowServiceStubsOptions.make,
-        ZWorkflowClientOptions.make,
+        ZWorkflowClientOptions.make @@
+          ZWorkflowClientOptions.withCodecRegistry(
+            new CodecRegistry()
+              .addInterface[PollingActivities]
+              .addInterface[PollingChildWorkflow]
+              .addInterface[PollingWorkflow]
+          ),
         ZWorkerFactoryOptions.make,
         // service layers
         TestService.make,

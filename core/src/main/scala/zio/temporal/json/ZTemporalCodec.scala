@@ -134,16 +134,17 @@ object ZTemporalCodec extends LowPriorityZTemporalCodecInstances0 with LowPriori
     override def getRawType: Type                    = rawType
     override def getOwnerType: Type                  = null
 
-    override def equals(other: Any): Boolean = other match {
-      case that: ParameterizedType =>
-        that.getOwnerType == null &&
-        rawType == that.getRawType &&
-        java.util.Arrays.equals(
-          typeArgs.asInstanceOf[Array[AnyRef]],
-          that.getActualTypeArguments.asInstanceOf[Array[AnyRef]]
-        )
-      case _ => false
-    }
+    override def equals(other: Any): Boolean =
+      other match {
+        case that: ParameterizedType =>
+          that.getOwnerType == null &&
+          rawType == that.getRawType &&
+          java.util.Arrays.equals(
+            typeArgs.asInstanceOf[Array[AnyRef]],
+            that.getActualTypeArguments.asInstanceOf[Array[AnyRef]]
+          )
+        case _ => false
+      }
 
     override def hashCode: Int =
       java.util.Arrays.hashCode(typeArgs.asInstanceOf[Array[AnyRef]]) ^ rawType.hashCode()

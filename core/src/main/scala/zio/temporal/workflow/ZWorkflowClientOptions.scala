@@ -198,10 +198,11 @@ object ZWorkflowClientOptions extends ConfigurationCompanion[ZWorkflowClientOpti
     makeImpl(List(name) ++ names)
 
   private def makeImpl(additionalPath: List[String]): Layer[Config.Error, ZWorkflowClientOptions] = {
-    val config = additionalPath match {
-      case Nil          => workflowClientConfig.nested("zio", "temporal", "zworkflow_client")
-      case head :: tail => workflowClientConfig.nested(head, tail: _*)
-    }
+    val config =
+      additionalPath match {
+        case Nil          => workflowClientConfig.nested("zio", "temporal", "zworkflow_client")
+        case head :: tail => workflowClientConfig.nested(head, tail: _*)
+      }
     ZLayer.fromZIO {
       ZIO.config(config).map { case (namespace, identityCfg, binaryChecksum) =>
         new ZWorkflowClientOptions(

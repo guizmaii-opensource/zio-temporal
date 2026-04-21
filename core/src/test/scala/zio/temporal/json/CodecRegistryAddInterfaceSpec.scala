@@ -13,24 +13,24 @@ class CodecRegistryAddInterfaceSpec extends AnyWordSpec with Matchers {
 
     "register codecs for every parameter and return type of a workflow interface" in {
       val r = new CodecRegistry().addInterface[MyWorkflow]
-      r.encoderForClass(classOf[User]) shouldBe defined
-      r.decoderForType(classOf[User]) shouldBe defined
-      r.decoderForType(ZTemporalCodec[List[User]].genericType) shouldBe defined
-      r.encoderForClass(classOf[String]) shouldBe defined
+      r.encoderForClass(classOf[User]) should not be null
+      r.decoderForType(classOf[User]) should not be null
+      r.decoderForType(ZTemporalCodec[List[User]].genericType) should not be null
+      r.encoderForClass(classOf[String]) should not be null
     }
 
     "register codecs for signal and query methods as well" in {
       val r = new CodecRegistry().addInterface[MyWorkflow]
       // Signal method `updateName(String): Unit` — String + Unit codecs
-      r.decoderForType(classOf[String]) shouldBe defined
+      r.decoderForType(classOf[String]) should not be null
       // Query method `getSummary(): String` — String return
-      r.decoderForType(classOf[String]) shouldBe defined
+      r.decoderForType(classOf[String]) should not be null
     }
 
     "register codecs for an activity interface" in {
       val r = new CodecRegistry().addInterface[MyActivity]
-      r.encoderForClass(classOf[User]) shouldBe defined
-      r.decoderForType(classOf[Int]) shouldBe defined
+      r.encoderForClass(classOf[User]) should not be null
+      r.decoderForType(classOf[Int]) should not be null
     }
 
     "chain fluently across multiple interfaces" in {
@@ -38,14 +38,14 @@ class CodecRegistryAddInterfaceSpec extends AnyWordSpec with Matchers {
         .addInterface[MyWorkflow]
         .addInterface[MyActivity]
       // Types from both interfaces are reachable.
-      r.encoderForClass(classOf[User]) shouldBe defined
-      r.decoderForType(classOf[Int]) shouldBe defined
+      r.encoderForClass(classOf[User]) should not be null
+      r.decoderForType(classOf[Int]) should not be null
     }
 
     "register codecs for inherited methods when a workflow interface extends a parameterized parent" in {
       // SpecificWorkflow inherits `process(input: User)` from Parent[User]
       val r = new CodecRegistry().addInterface[SpecificWorkflow]
-      r.encoderForClass(classOf[User]) shouldBe defined
+      r.encoderForClass(classOf[User]) should not be null
     }
   }
 }

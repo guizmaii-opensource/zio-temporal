@@ -94,17 +94,17 @@ class ZioJsonPayloadConverterSpec extends AnyWordSpec with Matchers {
       r.size shouldEqual 2
     }
 
-    "return None for unregistered lookups" in {
+    "return null for unregistered lookups" in {
       val r = new CodecRegistry()
-      r.encoderForClass(classOf[User]) shouldEqual None
-      r.decoderForType(classOf[User]) shouldEqual None
+      r.encoderForClass(classOf[User]) shouldBe null
+      r.decoderForType(classOf[User]) shouldBe null
     }
 
     "key List[User] and List[Org] distinctly by genericType" in {
       val r = new CodecRegistry()
       r.register(ZTemporalCodec[List[User]])
-      r.decoderForType(ZTemporalCodec[List[User]].genericType) shouldBe defined
-      r.decoderForType(ZTemporalCodec[List[Org]].genericType) shouldEqual None
+      r.decoderForType(ZTemporalCodec[List[User]].genericType) should not be null
+      r.decoderForType(ZTemporalCodec[List[Org]].genericType) shouldBe null
     }
   }
 }

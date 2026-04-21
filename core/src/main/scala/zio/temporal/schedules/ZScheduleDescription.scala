@@ -128,14 +128,15 @@ sealed trait ZScheduleListAction {
 object ZScheduleListAction {
   private lazy val logger = LoggerFactory.getLogger(getClass)
 
-  def apply(value: ScheduleListAction): ZScheduleListAction = value match {
-    case value: ScheduleListActionStartWorkflow => new StartWorkflow(value)
-    case _                                      =>
-      logger.warn(
-        s"Unknown implementation of io.temporal.client.schedules.ScheduleListAction found: class=${value.getClass} value=$value"
-      )
-      Unknown(value)
-  }
+  def apply(value: ScheduleListAction): ZScheduleListAction =
+    value match {
+      case value: ScheduleListActionStartWorkflow => new StartWorkflow(value)
+      case _                                      =>
+        logger.warn(
+          s"Unknown implementation of io.temporal.client.schedules.ScheduleListAction found: class=${value.getClass} value=$value"
+        )
+        Unknown(value)
+    }
 
   /** Action to start a workflow on a listed schedule. */
   final class StartWorkflow(val toJava: ScheduleListActionStartWorkflow) extends ZScheduleListAction {

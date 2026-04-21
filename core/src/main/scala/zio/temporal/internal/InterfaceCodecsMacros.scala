@@ -70,16 +70,17 @@ object InterfaceCodecsMacros {
     // Collect every type that needs a codec: all parameter types + return type.
     // Use `interfaceRepr.memberType(m)` to resolve type parameters in the subclass's view — this makes a method
     // inherited from `Parent[User]` expose `User` as the parameter type rather than the abstract `A`.
-    def collect(tpe: TypeRepr): List[TypeRepr] = tpe match {
-      case MethodType(_, paramTypes, resultType) =>
-        paramTypes ++ collect(resultType)
-      case PolyType(_, _, resultType) =>
-        collect(resultType)
-      case ByNameType(underlying) =>
-        collect(underlying)
-      case other =>
-        List(other)
-    }
+    def collect(tpe: TypeRepr): List[TypeRepr] =
+      tpe match {
+        case MethodType(_, paramTypes, resultType) =>
+          paramTypes ++ collect(resultType)
+        case PolyType(_, _, resultType) =>
+          collect(resultType)
+        case ByNameType(underlying) =>
+          collect(underlying)
+        case other =>
+          List(other)
+      }
 
     val typesNeedingCodecs: List[TypeRepr] = boundaryMethods
       .flatMap { m =>

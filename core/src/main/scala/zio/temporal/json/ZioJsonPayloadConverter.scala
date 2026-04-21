@@ -24,55 +24,52 @@ final class ZioJsonPayloadConverter(registry: CodecRegistry) extends PayloadConv
 
   override def getEncodingType: String = EncodingName
 
-  override def toData(value: Any): Optional[Payload] = value match {
-    case null =>
-      Optional.empty()
-    case v =>
-      val cls = v.getClass
-      val enc = registry
-        .encoderForClass(cls)
-        .getOrElse(
+  override def toData(value: Any): Optional[Payload] =
+    value match {
+      case null => Optional.empty()
+      case v    =>
+        val cls = v.getClass
+        val enc = registry.encoderForClass(cls)
+        if (enc eq null) {
           throw new DataConverterException(
             s"No ZTemporalCodec registered for runtime class ${cls.getName}. " +
               "This usually means a workflow/activity interface using this type was not registered with the client " +
               "or worker, or a manual payload is being serialized outside a typed stub. " +
               s"Currently registered: [${registry.registeredTypeNames.mkString(", ")}]"
           )
+        }
+        // encodeJson returns a CharSequence (concretely a StringBuilder-like type); Protobuf's ByteString.copyFrom
+        // only accepts String, so we must materialize.
+        val json = enc
+          .asInstanceOf[JsonEncoder[Any]]
+          .encodeJson(v, None)
+          .toString
+        Optional.of(
+          Payload
+            .newBuilder()
+            .putMetadata(EncodingMetadataKey, EncodingPayload)
+            .setData(ByteString.copyFrom(json, StandardCharsets.UTF_8))
+            .build()
         )
-      val json = enc
-        .asInstanceOf[JsonEncoder[Any]]
-        .encodeJson(v, None)
-        .toString
-      Optional.of(
-        Payload
-          .newBuilder()
-          .putMetadata(EncodingMetadataKey, EncodingPayload)
-          .setData(ByteString.copyFrom(json, StandardCharsets.UTF_8))
-          .build()
-      )
-  }
+    }
 
   override def fromData[T](content: Payload, valueClass: Class[T], valueType: Type): T = {
-    val dec = registry
-      .decoderForType(valueType)
-      .orElse(registry.decoderForType(valueClass)) // fall back to raw class for ground types
-      .getOrElse(
-        throw new DataConverterException(
-          s"No ZTemporalCodec registered for decode target ${valueType.getTypeName} (raw ${valueClass.getName}). " +
-            "This usually means a workflow/activity interface using this type was not registered with the client " +
-            "or worker. " +
-            s"Currently registered: [${registry.registeredTypeNames.mkString(", ")}]"
-        )
+    // Try the parameterized Type first; fall back to the raw class for ground types.
+    var dec: JsonDecoder[_] | Null = registry.decoderForType(valueType)
+    if (dec eq null) dec = registry.decoderForType(valueClass)
+    if (dec eq null) {
+      throw new DataConverterException(
+        s"No ZTemporalCodec registered for decode target ${valueType.getTypeName} (raw ${valueClass.getName}). " +
+          "This usually means a workflow/activity interface using this type was not registered with the client " +
+          "or worker. " +
+          s"Currently registered: [${registry.registeredTypeNames.mkString(", ")}]"
       )
-    val json = content.getData.toStringUtf8
-    dec
-      .asInstanceOf[JsonDecoder[T]]
-      .decodeJson(json) match {
+    }
+    val json   = content.getData.toStringUtf8
+    val result = dec.asInstanceOf[JsonDecoder[T]].decodeJson(json)
+    result match {
       case Right(v)  => v
-      case Left(err) =>
-        throw new DataConverterException(
-          s"Failed to decode payload as ${valueType.getTypeName}: $err"
-        )
+      case Left(err) => throw new DataConverterException(s"Failed to decode payload as ${valueType.getTypeName}: $err")
     }
   }
 }

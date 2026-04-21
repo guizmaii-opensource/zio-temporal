@@ -234,10 +234,11 @@ object ZWorkflowServiceStubsOptions extends ConfigurationCompanion[ZWorkflowServ
     makeImpl(List(name) ++ names)
 
   private def makeImpl(additionalPath: List[String]): Layer[Config.Error, ZWorkflowServiceStubsOptions] = {
-    val config = additionalPath match {
-      case Nil          => workflowServiceStubsConfig.nested("zio", "temporal", "zworkflow_service_stubs")
-      case head :: tail => workflowServiceStubsConfig.nested(head, tail: _*)
-    }
+    val config =
+      additionalPath match {
+        case Nil          => workflowServiceStubsConfig.nested("zio", "temporal", "zworkflow_service_stubs")
+        case head :: tail => workflowServiceStubsConfig.nested(head, tail: _*)
+      }
     ZLayer.fromZIO {
       ZIO.config(config).map {
         case (

@@ -13,26 +13,26 @@ case object Done derives ZTemporalCodec
 @activityInterface
 trait TransferActivity {
   @throws[TransferError]
-  def deposit(account: String, amount: BigDecimal): Done
+  def deposit(account: String, amount: BigDecimal): Done.type
 
   @throws[TransferError]
-  def withdraw(account: String, amount: BigDecimal): Done
+  def withdraw(account: String, amount: BigDecimal): Done.type
 }
 
 class TransferActivityImpl(
-  depositFunc:  (String, BigDecimal) => IO[TransferError, Done],
-  withdrawFunc: (String, BigDecimal) => IO[TransferError, Done]
+  depositFunc:  (String, BigDecimal) => IO[TransferError, Done.type],
+  withdrawFunc: (String, BigDecimal) => IO[TransferError, Done.type]
 )(implicit options: ZActivityRunOptions[Any])
     extends TransferActivity {
 
-  override def deposit(account: String, amount: BigDecimal): Done = {
+  override def deposit(account: String, amount: BigDecimal): Done.type = {
     ZActivity.run {
       ZIO.logInfo(s"Deposit account=$account amount=$amount") *>
         depositFunc(account, amount)
     }
   }
 
-  override def withdraw(account: String, amount: BigDecimal): Done =
+  override def withdraw(account: String, amount: BigDecimal): Done.type =
     ZActivity.run {
       ZIO.logInfo(s"withdraw account=$account amount=$amount") *>
         withdrawFunc(account, amount)

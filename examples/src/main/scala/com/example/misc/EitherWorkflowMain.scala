@@ -4,6 +4,7 @@ import zio._
 import zio.logging.backend.SLF4J
 import zio.temporal._
 import zio.temporal.activity.{ZActivity, ZActivityOptions, ZActivityRunOptions, ZActivityStub}
+import zio.temporal.json.CodecRegistry
 import zio.temporal.worker._
 import zio.temporal.workflow._
 
@@ -26,7 +27,7 @@ object EitherActivityImpl {
     ZLayer.fromFunction(EitherActivityImpl()(_: ZActivityRunOptions[Any]))
 }
 
-case class EitherActivityImpl()(implicit options: ZActivityRunOptions[Any]) extends EitherActivity {
+final case class EitherActivityImpl()(implicit options: ZActivityRunOptions[Any]) extends EitherActivity {
   override def either: Either[String, Int] =
     ZActivity.run {
       ZIO.succeed(Right(41))
@@ -34,7 +35,7 @@ case class EitherActivityImpl()(implicit options: ZActivityRunOptions[Any]) exte
 
 }
 
-case class EitherWorkflowImpl() extends EitherWorkflow {
+final case class EitherWorkflowImpl() extends EitherWorkflow {
   override def start: Either[String, Int] = {
     val stub = ZWorkflow.newActivityStub[EitherActivity](
       ZActivityOptions
@@ -90,7 +91,12 @@ object EitherWorkflowMain extends ZIOAppDefault {
     program
       .provideSome[Scope](
         ZWorkflowServiceStubsOptions.make,
-        ZWorkflowClientOptions.make,
+        ZWorkflowClientOptions.make @@
+          ZWorkflowClientOptions.withCodecRegistry(
+            new CodecRegistry()
+              .addInterface[EitherWorkflow]
+              .addInterface[EitherActivity]
+          ),
         ZWorkerFactoryOptions.make,
         ZWorkflowClient.make,
         ZWorkflowServiceStubs.make,

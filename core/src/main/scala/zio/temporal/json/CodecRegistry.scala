@@ -40,25 +40,30 @@ final class CodecRegistry {
   }
 
   /** Look up an encoder by the value's runtime class, walking up the superclass chain if no exact match is found.
+    * Returns `null` for "not found" to avoid allocating an `Option` on the hot serialization path.
     *
     * Many Scala collections expose concrete runtime classes that differ from the static type registered — for example a
     * non-empty `List[A]` has runtime class `scala.collection.immutable.$colon$colon`, while the caller registered
     * `scala.collection.immutable.List`. Walking the superclass chain lets the encoder registered for the base type
     * serve all runtime subclasses, which matches the Jackson-era behaviour most users relied on.
     */
-  def encoderForClass(cls: Class[_]): Option[JsonEncoder[_]] = {
+  def encoderForClass(cls: Class[_]): JsonEncoder[_] | Null = {
     var c: Class[_] = cls
-    while (c != null) {
+    while (c ne null) {
       val hit = byClass.get(c)
-      if (hit != null) return Some(hit._1)
+      if (hit ne null) return hit._1
       c = c.getSuperclass
     }
-    None
+    null
   }
 
-  /** Look up a decoder by a parameterized Java type. */
-  def decoderForType(t: Type): Option[JsonDecoder[_]] =
-    Option(byType.get(t)).map(_._2)
+  /** Look up a decoder by a parameterized Java type. Returns `null` for "not found" to avoid allocating an `Option` on
+    * the hot deserialization path.
+    */
+  def decoderForType(t: Type): JsonDecoder[_] | Null = {
+    val hit = byType.get(t)
+    if (hit ne null) hit._2 else null
+  }
 
   /** For diagnostics: human-readable list of registered types. */
   def registeredTypeNames: Iterable[String] = {
