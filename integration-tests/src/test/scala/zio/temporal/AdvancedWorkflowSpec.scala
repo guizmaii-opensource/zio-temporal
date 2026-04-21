@@ -182,7 +182,7 @@ object AdvancedWorkflowSpec extends BaseTemporalSpec {
               withdrawn.incrementAndGet()
               Done
             }
-          val depositFunc: (String, BigDecimal) => IO[TransferError, Done.type] = {
+          val depositFunc: (String, BigDecimal) => IO[TransferError, Done] = {
             case (From, _) =>
               ZIO.succeed {
                 compensated.set(true)

@@ -39,13 +39,20 @@ final class CodecRegistry {
     this
   }
 
-  /** Look up an encoder by the value's runtime class, walking up the superclass chain if no exact match is found.
-    * Returns `null` for "not found" to avoid allocating an `Option` on the hot serialization path.
+  /** Look up an encoder by the value's runtime class. Returns `null` for "not found" to avoid allocating an `Option` on
+    * the hot serialization path.
     *
-    * Many Scala collections expose concrete runtime classes that differ from the static type registered — for example a
-    * non-empty `List[A]` has runtime class `scala.collection.immutable.$colon$colon`, while the caller registered
-    * `scala.collection.immutable.List`. Walking the superclass chain lets the encoder registered for the base type
-    * serve all runtime subclasses, which matches the Jackson-era behaviour most users relied on.
+    * If there is no exact match for `cls`, walks the class's supertype chain — first the superclass chain, then the
+    * implemented interfaces — looking for a registered codec on any ancestor. This covers two common patterns:
+    *
+    *   1. Scala collections expose concrete subclasses that differ from the registered static type. A non-empty
+    *      `List[A]` has runtime class `scala.collection.immutable.$colon$colon`, while the caller registered
+    *      `scala.collection.immutable.List`. The superclass walk resolves the registered base codec.
+    *   2. A user may register a codec on an interface (`sealed trait Shape`) and serialize concrete implementations
+    *      (`Rectangle(...)`). The interface walk finds the registered `Shape` codec even when the concrete class itself
+    *      was never explicitly registered.
+    *
+    * This matches the Jackson-era behaviour most users relied on.
     */
   def encoderForClass(cls: Class[_]): JsonEncoder[_] | Null = {
     var c: Class[_] = cls
@@ -53,6 +60,33 @@ final class CodecRegistry {
       val hit = byClass.get(c)
       if (hit ne null) return hit._1
       c = c.getSuperclass
+    }
+    // Superclass chain didn't match — try implemented interfaces. Java's `Class#getInterfaces` only returns
+    // the directly-declared interfaces, so we walk transitively ourselves.
+    val visited = new java.util.HashSet[Class[_]](8)
+    val stack   = new java.util.ArrayDeque[Class[_]](8)
+    var next    = cls
+    while (next ne null) {
+      val directs = next.getInterfaces
+      var index   = 0
+      while (index < directs.length) {
+        stack.push(directs(index))
+        index += 1
+      }
+      next = next.getSuperclass
+    }
+    while (!stack.isEmpty) {
+      val iface = stack.pop()
+      if (visited.add(iface)) {
+        val hit = byClass.get(iface)
+        if (hit ne null) return hit._1
+        val supers = iface.getInterfaces
+        var index  = 0
+        while (index < supers.length) {
+          stack.push(supers(index))
+          index += 1
+        }
+      }
     }
     null
   }

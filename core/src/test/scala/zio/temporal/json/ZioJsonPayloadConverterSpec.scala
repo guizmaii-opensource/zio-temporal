@@ -106,8 +106,37 @@ class ZioJsonPayloadConverterSpec extends AnyWordSpec with Matchers {
       r.decoderForType(ZTemporalCodec[List[User]].genericType) should not be null
       r.decoderForType(ZTemporalCodec[List[Org]].genericType) shouldBe null
     }
+
+    "encoderForClass walks implemented interfaces when no superclass matches" in {
+      val r = new CodecRegistry()
+      r.register(ZTemporalCodec[InterfaceWalkShape])
+      // `InterfaceWalkRectangle` was never registered directly; its registered ancestor is the sealed trait.
+      r.encoderForClass(classOf[InterfaceWalkRectangle]) should not be null
+    }
+
+    "encoderForClass walks transitive interfaces" in {
+      val r = new CodecRegistry()
+      r.register(ZTemporalCodec[InterfaceWalkMarker])
+      // `InterfaceWalkTaggedImpl` implements `InterfaceWalkTagged`, which extends `InterfaceWalkMarker`.
+      r.encoderForClass(classOf[InterfaceWalkTaggedImpl]) should not be null
+    }
   }
 }
+
+// Fixtures for the interface-walk tests (names prefixed `InterfaceWalk` to avoid collision with `Shape`
+// in `ZTemporalCodecSpec`, which lives in the same package).
+
+private sealed trait InterfaceWalkShape derives zio.json.JsonCodec
+private final case class InterfaceWalkRectangle(w: Double, h: Double) extends InterfaceWalkShape
+
+private trait InterfaceWalkMarker
+private trait InterfaceWalkTagged extends InterfaceWalkMarker
+private object InterfaceWalkMarker {
+  given zio.json.JsonEncoder[InterfaceWalkMarker] = zio.json.JsonEncoder.string.contramap(_.toString)
+  given zio.json.JsonDecoder[InterfaceWalkMarker] =
+    zio.json.JsonDecoder.string.map(_ => new InterfaceWalkTaggedImpl("x"))
+}
+private final class InterfaceWalkTaggedImpl(val tag: String) extends InterfaceWalkTagged
 
 object ZioJsonPayloadConverterSpec {
   final case class User(id: Int, name: String)

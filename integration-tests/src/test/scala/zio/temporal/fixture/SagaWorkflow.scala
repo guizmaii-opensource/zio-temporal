@@ -9,37 +9,38 @@ import zio.temporal.workflow._
 final case class TransferError(msg: String) extends Exception(msg) derives ZTemporalCodec
 
 case object Done derives ZTemporalCodec
+type Done = Done.type
 
 @activityInterface
 trait TransferActivity {
   @throws[TransferError]
-  def deposit(account: String, amount: BigDecimal): Done.type
+  def deposit(account: String, amount: BigDecimal): Done
 
   @throws[TransferError]
-  def withdraw(account: String, amount: BigDecimal): Done.type
+  def withdraw(account: String, amount: BigDecimal): Done
 }
 
 class TransferActivityImpl(
-  depositFunc:  (String, BigDecimal) => IO[TransferError, Done.type],
-  withdrawFunc: (String, BigDecimal) => IO[TransferError, Done.type]
+  depositFunc:  (String, BigDecimal) => IO[TransferError, Done],
+  withdrawFunc: (String, BigDecimal) => IO[TransferError, Done]
 )(implicit options: ZActivityRunOptions[Any])
     extends TransferActivity {
 
-  override def deposit(account: String, amount: BigDecimal): Done.type = {
+  override def deposit(account: String, amount: BigDecimal): Done = {
     ZActivity.run {
       ZIO.logInfo(s"Deposit account=$account amount=$amount") *>
         depositFunc(account, amount)
     }
   }
 
-  override def withdraw(account: String, amount: BigDecimal): Done.type =
+  override def withdraw(account: String, amount: BigDecimal): Done =
     ZActivity.run {
       ZIO.logInfo(s"withdraw account=$account amount=$amount") *>
         withdrawFunc(account, amount)
     }
 }
 
-final case class TransferCommand(from: String, to: String, amount: BigDecimal)
+final case class TransferCommand(from: String, to: String, amount: BigDecimal) derives ZTemporalCodec
 
 @workflowInterface
 trait SagaWorkflow {

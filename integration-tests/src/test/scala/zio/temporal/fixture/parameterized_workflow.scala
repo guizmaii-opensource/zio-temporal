@@ -1,30 +1,16 @@
 package zio.temporal.fixture
 
-import zio.json.{DeriveJsonDecoder, DeriveJsonEncoder, JsonDecoder, JsonEncoder}
+import zio.json.JsonCodec
 import zio.temporal._
 import zio.temporal.workflow._
 import scala.reflect.ClassTag
 
-final case class ParameterizedWorkflowOutput(message: String)
-object ParameterizedWorkflowOutput {
-  given JsonEncoder[ParameterizedWorkflowOutput] = DeriveJsonEncoder.gen[ParameterizedWorkflowOutput]
-  given JsonDecoder[ParameterizedWorkflowOutput] = DeriveJsonDecoder.gen[ParameterizedWorkflowOutput]
-}
+final case class ParameterizedWorkflowOutput(message: String) derives JsonCodec
 
-sealed trait ParameterizedChildWorkflowInput
+sealed trait ParameterizedChildWorkflowInput derives JsonCodec
 object ParameterizedChildWorkflowInput {
-
-  final case class Soda(kind: String)               extends ParameterizedChildWorkflowInput
-  final case class Juice(kind: String, volume: Int) extends ParameterizedChildWorkflowInput
-
-  given JsonEncoder[ParameterizedChildWorkflowInput] = DeriveJsonEncoder.gen[ParameterizedChildWorkflowInput]
-  given JsonDecoder[ParameterizedChildWorkflowInput] = DeriveJsonDecoder.gen[ParameterizedChildWorkflowInput]
-
-  given JsonEncoder[Soda] = DeriveJsonEncoder.gen[Soda]
-  given JsonDecoder[Soda] = DeriveJsonDecoder.gen[Soda]
-
-  given JsonEncoder[Juice] = DeriveJsonEncoder.gen[Juice]
-  given JsonDecoder[Juice] = DeriveJsonDecoder.gen[Juice]
+  final case class Soda(kind: String)               extends ParameterizedChildWorkflowInput derives JsonCodec
+  final case class Juice(kind: String, volume: Int) extends ParameterizedChildWorkflowInput derives JsonCodec
 }
 
 // NOTE: temporal won't deserialize correctly without the lower-bound type
@@ -33,20 +19,10 @@ trait ParameterizedChildWorkflow[Input <: ParameterizedChildWorkflowInput] {
   def childTask(input: Input): ParameterizedWorkflowOutput
 }
 
-sealed trait ParameterizedWorkflowInput
+sealed trait ParameterizedWorkflowInput derives JsonCodec
 object ParameterizedWorkflowInput {
-
-  final case class Soda(kind: String)  extends ParameterizedWorkflowInput
-  final case class Juice(kind: String) extends ParameterizedWorkflowInput
-
-  given JsonEncoder[ParameterizedWorkflowInput] = DeriveJsonEncoder.gen[ParameterizedWorkflowInput]
-  given JsonDecoder[ParameterizedWorkflowInput] = DeriveJsonDecoder.gen[ParameterizedWorkflowInput]
-
-  given JsonEncoder[Soda] = DeriveJsonEncoder.gen[Soda]
-  given JsonDecoder[Soda] = DeriveJsonDecoder.gen[Soda]
-
-  given JsonEncoder[Juice] = DeriveJsonEncoder.gen[Juice]
-  given JsonDecoder[Juice] = DeriveJsonDecoder.gen[Juice]
+  final case class Soda(kind: String)  extends ParameterizedWorkflowInput derives JsonCodec
+  final case class Juice(kind: String) extends ParameterizedWorkflowInput derives JsonCodec
 }
 
 // NOTE: temporal won't deserialize correctly without the lower-bound type
