@@ -40,7 +40,7 @@ const sidebars = {
       label: "Serialization",
       items: [
         "serialization/overview",
-        "serialization/jackson",
+        "serialization/zio-json",
         "serialization/protobuf"
       ]
     },
