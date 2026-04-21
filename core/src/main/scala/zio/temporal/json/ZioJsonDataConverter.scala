@@ -10,6 +10,10 @@ import io.temporal.common.converter._
   *   1. [[NullPayloadConverter]] — null values
   *   1. [[ByteArrayPayloadConverter]] — raw byte buffers
   *   1. [[ProtobufJsonPayloadConverter]] — Temporal-internal protobuf types like `WorkflowExecution`
+  *   1. [[TemporalInternalsPayloadConverter]] — an allow-listed set of Temporal Java SDK internal POJOs (currently
+  *      `WorkflowRetryerInternal$SerializableRetryOptions`) that leak into the chain via `Workflow.retry`'s
+  *      `mutableSideEffect` and for which no user-provided codec exists. The upstream SDK relies on Jackson's
+  *      reflective fallback here; we substitute a surgical reflective encoder.
   *   1. [[ZioJsonPayloadConverter]] — everything else (encoding `json/zio`)
   */
 object ZioJsonDataConverter {
@@ -20,6 +24,7 @@ object ZioJsonDataConverter {
       new NullPayloadConverter(),
       new ByteArrayPayloadConverter(),
       new ProtobufJsonPayloadConverter(),
+      new TemporalInternalsPayloadConverter(),
       new ZioJsonPayloadConverter(registry)
     )
 }
