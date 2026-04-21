@@ -7,7 +7,7 @@ import com.google.protobuf.ByteString
 import io.temporal.api.common.v1.Payload
 import io.temporal.common.converter.EncodingKeys
 import org.scalatest.{Assertion, OptionValues}
-import zio.json.{DeriveJsonDecoder, DeriveJsonEncoder, JsonDecoder, JsonEncoder}
+import zio.json.JsonCodec
 import zio.temporal.json.ZTemporalCodec
 import zio.temporal.protobuf.ScalapbJsonImplicits.given
 import java.nio.charset.StandardCharsets
@@ -17,11 +17,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.jdk.OptionConverters._
 
 object ScalapbPayloadConverterSpec {
-  final case class TemporaryClass(value: Int)
-  object TemporaryClass {
-    given JsonEncoder[TemporaryClass] = DeriveJsonEncoder.gen[TemporaryClass]
-    given JsonDecoder[TemporaryClass] = DeriveJsonDecoder.gen[TemporaryClass]
-  }
+  final case class TemporaryClass(value: Int) derives JsonCodec
 }
 
 class ScalapbPayloadConverterSpec extends AnyWordSpec with Matchers with OptionValues {

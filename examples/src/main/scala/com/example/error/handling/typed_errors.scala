@@ -1,18 +1,14 @@
 package com.example.error.handling
 
 import zio._
-import zio.json.{DeriveJsonDecoder, DeriveJsonEncoder, JsonDecoder, JsonEncoder}
+import zio.json.JsonCodec
 import zio.temporal._
 import zio.temporal.activity._
 import zio.temporal.workflow._
 import zio.temporal.failure._
 
 object SafeMath {
-  final case class MathError(error: String)
-  object MathError {
-    given JsonEncoder[MathError] = DeriveJsonEncoder.gen[MathError]
-    given JsonDecoder[MathError] = DeriveJsonDecoder.gen[MathError]
-  }
+  final case class MathError(error: String) derives JsonCodec
 
   def divide(x: Int, y: Int): IO[MathError, Int] =
     if (y == 0) ZIO.fail(MathError("Zero division"))

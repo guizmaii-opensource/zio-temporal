@@ -2,7 +2,7 @@ package zio.temporal.json
 
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-import zio.json.{DeriveJsonDecoder, DeriveJsonEncoder, JsonDecoder, JsonEncoder}
+import zio.json.JsonCodec
 import zio.temporal.*
 
 class CodecRegistryAddInterfaceSpec extends AnyWordSpec with Matchers {
@@ -51,11 +51,7 @@ class CodecRegistryAddInterfaceSpec extends AnyWordSpec with Matchers {
 }
 
 object CodecRegistryAddInterfaceSpec {
-  final case class User(id: Int, name: String)
-  object User {
-    given JsonEncoder[User] = DeriveJsonEncoder.gen[User]
-    given JsonDecoder[User] = DeriveJsonDecoder.gen[User]
-  }
+  final case class User(id: Int, name: String) derives JsonCodec
 
   @workflowInterface
   trait MyWorkflow {

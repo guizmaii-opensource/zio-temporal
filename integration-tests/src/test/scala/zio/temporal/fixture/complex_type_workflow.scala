@@ -1,7 +1,7 @@
 package zio.temporal.fixture
 
 import zio._
-import zio.json.{DeriveJsonDecoder, DeriveJsonEncoder, JsonDecoder, JsonEncoder}
+import zio.json.{DeriveJsonCodec, JsonCodec}
 import zio.temporal._
 import zio.temporal.activity._
 import zio.temporal.state.ZWorkflowState
@@ -10,18 +10,14 @@ import zio.temporal.workflow._
 import java.util.UUID
 import scala.concurrent.TimeoutException
 
-final case class Foo(bar: String)
-object Foo {
-  given JsonEncoder[Foo] = DeriveJsonEncoder.gen[Foo]
-  given JsonDecoder[Foo] = DeriveJsonDecoder.gen[Foo]
-}
+final case class Foo(bar: String) derives JsonCodec
 
 final case class Triple[A, B, C](first: A, second: B, third: C)
 object Triple {
-  given [A: JsonEncoder, B: JsonEncoder, C: JsonEncoder]: JsonEncoder[Triple[A, B, C]] =
-    DeriveJsonEncoder.gen[Triple[A, B, C]]
-  given [A: JsonDecoder, B: JsonDecoder, C: JsonDecoder]: JsonDecoder[Triple[A, B, C]] =
-    DeriveJsonDecoder.gen[Triple[A, B, C]]
+  // A parameterized derivation can't use the `derives` clause on the class header (the derived givens need their
+  // own type params), so we keep an explicit `given` here — still a one-liner.
+  given [A: JsonCodec, B: JsonCodec, C: JsonCodec]: JsonCodec[Triple[A, B, C]] =
+    DeriveJsonCodec.gen[Triple[A, B, C]]
 }
 
 @activityInterface

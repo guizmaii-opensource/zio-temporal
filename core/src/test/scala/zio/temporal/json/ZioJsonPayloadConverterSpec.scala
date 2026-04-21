@@ -5,7 +5,7 @@ import io.temporal.api.common.v1.Payload
 import io.temporal.common.converter.DataConverterException
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-import zio.json.{DeriveJsonDecoder, DeriveJsonEncoder, JsonDecoder, JsonEncoder}
+import zio.json.JsonCodec
 
 import java.nio.charset.StandardCharsets
 
@@ -139,15 +139,6 @@ private object InterfaceWalkMarker {
 private final class InterfaceWalkTaggedImpl(val tag: String) extends InterfaceWalkTagged
 
 object ZioJsonPayloadConverterSpec {
-  final case class User(id: Int, name: String)
-  object User {
-    given JsonEncoder[User] = DeriveJsonEncoder.gen[User]
-    given JsonDecoder[User] = DeriveJsonDecoder.gen[User]
-  }
-
-  final case class Org(name: String)
-  object Org {
-    given JsonEncoder[Org] = DeriveJsonEncoder.gen[Org]
-    given JsonDecoder[Org] = DeriveJsonDecoder.gen[Org]
-  }
+  final case class User(id: Int, name: String) derives JsonCodec
+  final case class Org(name: String) derives JsonCodec
 }
