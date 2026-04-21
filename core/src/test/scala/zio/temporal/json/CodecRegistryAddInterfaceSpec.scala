@@ -47,6 +47,22 @@ class CodecRegistryAddInterfaceSpec extends AnyWordSpec with Matchers {
       val r = new CodecRegistry().addInterface[SpecificWorkflow]
       r.encoderForClass(classOf[User]) should not be null
     }
+
+    "promote a sealed-trait subtype to its sealed parent when walking a parameterized interface" in {
+      // `DrinkSodaWorkflow extends DrinkWorkflow[Drink.Soda]`. Without promotion the macro would register a codec
+      // keyed on the concrete `Drink.Soda` class (its flat zio-json shape `{"kind":"x"}`) and the decode side —
+      // which on the inherited method resolves the TypeVariable to the upper bound `Drink` — would expect the
+      // wrapped shape `{"Soda":{"kind":"x"}}`. The macro must instead register only the parent codec.
+      val r = new CodecRegistry().addInterface[DrinkSodaWorkflow]
+
+      val classNames = r.registeredClassNames.toSet
+      classNames should contain(classOf[Drink].getName)
+      classNames should not contain classOf[Drink.Soda].getName
+      classNames should not contain classOf[Drink.Juice].getName
+
+      r.encoderForClass(classOf[Drink.Soda]) should not be null
+      r.decoderForType(classOf[Drink]) should not be null
+    }
   }
 }
 
@@ -78,4 +94,18 @@ object CodecRegistryAddInterfaceSpec {
 
   @workflowInterface
   trait SpecificWorkflow extends Parent[User]
+
+  sealed trait Drink derives JsonCodec
+  object Drink {
+    final case class Soda(kind: String)  extends Drink derives JsonCodec
+    final case class Juice(kind: String) extends Drink derives JsonCodec
+  }
+
+  trait DrinkWorkflow[Input <: Drink] {
+    @workflowMethod
+    def serve(input: Input): Unit
+  }
+
+  @workflowInterface
+  trait DrinkSodaWorkflow extends DrinkWorkflow[Drink.Soda]
 }

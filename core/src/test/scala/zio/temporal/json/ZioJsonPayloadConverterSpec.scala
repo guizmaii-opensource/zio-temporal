@@ -339,6 +339,82 @@ class ZioJsonPayloadConverterSpec extends AnyWordSpec with Matchers {
       decoded shouldEqual nested
     }
   }
+
+  "ZioJsonPayloadConverter — sealed-trait parent only" should {
+
+    // Regression for the parameterized-workflow path. A fixture like
+    //   sealed trait Drink; object Drink { final case class Soda(kind: String) extends Drink }
+    //   trait DrinkWorkflow[Input <: Drink] { @workflowMethod def serve(input: Input) }
+    //   @workflowInterface trait SodaWorkflow extends DrinkWorkflow[Drink.Soda]
+    // previously registered a flat `Soda` codec (encode side emits `{"kind":"cola"}`) but decoded via the
+    // sealed-trait parent (decode side expects `{"Soda":{"kind":"cola"}}`). The macro now promotes the
+    // subtype to its sealed parent so both sides agree.
+
+    "encode Drink.Soda using the sealed-parent codec when only the parent is registered" in {
+      val registry  = new CodecRegistry().register(ZTemporalCodec[Drink])
+      val converter = new ZioJsonPayloadConverter(registry)
+
+      val value: Drink.Soda = Drink.Soda("cola")
+      val payload           = converter.toData(value).orElseThrow(() => new AssertionError("expected non-empty"))
+      // Parent codec uses zio-json's default sealed-trait discriminator: `{"Soda":{"kind":"cola"}}`.
+      payload.getData.toStringUtf8 shouldEqual """{"Soda":{"kind":"cola"}}"""
+    }
+
+    "decode a subtype payload via the parent codec when valueClass is the concrete subtype" in {
+      val registry  = new CodecRegistry().register(ZTemporalCodec[Drink])
+      val converter = new ZioJsonPayloadConverter(registry)
+
+      val payload = converter
+        .toData(Drink.Soda("cola"))
+        .orElseThrow(() => new AssertionError("expected non-empty"))
+      val decoded =
+        converter.fromData(payload, classOf[Drink.Soda], classOf[Drink.Soda])
+      decoded shouldEqual Drink.Soda("cola")
+    }
+
+    "decode via the parent codec when valueType is the parent class (Temporal upper-bound reflection case)" in {
+      val registry  = new CodecRegistry().register(ZTemporalCodec[Drink])
+      val converter = new ZioJsonPayloadConverter(registry)
+
+      val payload = converter
+        .toData(Drink.Soda("cola"))
+        .orElseThrow(() => new AssertionError("expected non-empty"))
+      val decoded =
+        converter.fromData(payload, classOf[Drink], classOf[Drink])
+      decoded shouldEqual Drink.Soda("cola")
+    }
+
+    "round-trip via parent even when the decode target is the concrete subtype class (covers hierarchy fallback)" in {
+      // Encode: `v.getClass = Soda`, superclass walk finds parent → wrapped form.
+      // Decode: `valueType = Soda`, direct `byType` lookup misses, `byClass` misses, `decoderForClassHierarchy`
+      // walks the interface chain and finds `Drink`. The parent decoder produces the parent type, which the
+      // unchecked cast inside `fromData` returns as-is.
+      val registry  = new CodecRegistry().register(ZTemporalCodec[Drink])
+      val converter = new ZioJsonPayloadConverter(registry)
+
+      val payload = converter
+        .toData(Drink.Soda("cola"))
+        .orElseThrow(() => new AssertionError("expected non-empty"))
+      payload.getData.toStringUtf8 shouldEqual """{"Soda":{"kind":"cola"}}"""
+
+      val decoded: Drink = converter.fromData(payload, classOf[Drink.Soda], classOf[Drink.Soda])
+      decoded shouldEqual Drink.Soda("cola")
+    }
+  }
+
+  "CodecRegistry.decoderForClassHierarchy" should {
+
+    "return a decoder registered on a sealed parent when queried with a concrete subtype class" in {
+      val r = new CodecRegistry().register(ZTemporalCodec[Drink])
+      r.decoderForClassHierarchy(classOf[Drink.Soda]) should not be null
+      r.decoderForClassHierarchy(classOf[Drink.Juice]) should not be null
+    }
+
+    "return null when no ancestor is registered" in {
+      val r = new CodecRegistry()
+      r.decoderForClassHierarchy(classOf[Drink.Soda]) shouldBe null
+    }
+  }
 }
 
 // Fixtures for the interface-walk tests (names prefixed `InterfaceWalk` to avoid collision with `Shape`
@@ -359,6 +435,12 @@ private final class InterfaceWalkTaggedImpl(val tag: String) extends InterfaceWa
 object ZioJsonPayloadConverterSpec {
   final case class User(id: Int, name: String) derives JsonCodec
   final case class Org(name: String) derives JsonCodec
+
+  sealed trait Drink derives JsonCodec
+  object Drink {
+    final case class Soda(kind: String)  extends Drink derives JsonCodec
+    final case class Juice(kind: String) extends Drink derives JsonCodec
+  }
 
   private def rawPayload(json: String): Payload =
     Payload

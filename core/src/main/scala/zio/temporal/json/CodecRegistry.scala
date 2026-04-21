@@ -129,6 +129,47 @@ final class CodecRegistry {
     if (hit ne null) hit._2 else null
   }
 
+  /** Look up a decoder by the value's runtime class, walking the superclass chain and implemented interfaces to find a
+    * registered ancestor. Mirrors [[encoderForClass]] for the decode path: when a concrete subtype of a sealed
+    * hierarchy (e.g. `ParameterizedWorkflowInput.Soda`) reaches the converter but only the sealed parent was
+    * registered, the walk finds the parent codec. Queries [[byType]] since `java.lang.Class[_]` is a
+    * [[java.lang.reflect.Type]] and ground codecs are indexed there under their class key.
+    */
+  def decoderForClassHierarchy(cls: Class[_]): JsonDecoder[_] | Null = {
+    var c: Class[_] = cls
+    while (c ne null) {
+      val hit = byType.get(c)
+      if (hit ne null) return hit._2
+      c = c.getSuperclass
+    }
+    val visited = new java.util.HashSet[Class[_]](8)
+    val stack   = new java.util.ArrayDeque[Class[_]](8)
+    var next    = cls
+    while (next ne null) {
+      val directs = next.getInterfaces
+      var index   = 0
+      while (index < directs.length) {
+        stack.push(directs(index))
+        index += 1
+      }
+      next = next.getSuperclass
+    }
+    while (!stack.isEmpty) {
+      val iface = stack.pop()
+      if (visited.add(iface)) {
+        val hit = byType.get(iface)
+        if (hit ne null) return hit._2
+        val supers = iface.getInterfaces
+        var index  = 0
+        while (index < supers.length) {
+          stack.push(supers(index))
+          index += 1
+        }
+      }
+    }
+    null
+  }
+
   /** For diagnostics: human-readable list of registered types. */
   def registeredTypeNames: Iterable[String] = {
     import scala.jdk.CollectionConverters._

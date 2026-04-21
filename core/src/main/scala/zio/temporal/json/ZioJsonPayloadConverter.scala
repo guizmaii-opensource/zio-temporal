@@ -119,9 +119,11 @@ final class ZioJsonPayloadConverter(registry: CodecRegistry) extends PayloadConv
   }
 
   override def fromData[T](content: Payload, valueClass: Class[T], valueType: Type): T = {
-    // Try the parameterized Type first; fall back to the raw class for ground types.
+    // Try the parameterized Type first; fall back to the raw class for ground types; finally walk the class
+    // hierarchy so a concrete subtype of a sealed-trait-registered hierarchy can decode via its registered parent.
     var decoder: JsonDecoder[_] | Null = registry.decoderForType(valueType)
     if (decoder eq null) decoder = registry.decoderForType(valueClass)
+    if (decoder eq null) decoder = registry.decoderForClassHierarchy(valueClass)
     if (decoder eq null) {
       // Scala 3 erases primitive-union types like `Int | Null` to `java.lang.Object` at the JVM method
       // signature level (a primitive slot cannot hold `null`). Temporal's worker reflects on that signature

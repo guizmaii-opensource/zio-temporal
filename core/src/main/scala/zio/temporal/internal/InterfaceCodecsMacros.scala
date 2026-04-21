@@ -95,10 +95,40 @@ object InterfaceCodecsMacros {
       tpe +: direct
     }
 
+    // Redirect a concrete sealed subtype to its sealed ancestor so the registry only ever holds the parent codec
+    // for types in a sealed hierarchy. Encoder lookup on a runtime class of `Soda` walks its supertype chain and
+    // lands on the parent codec; decoder lookup on the inherited-method's upper-bound also lands on the parent
+    // codec. Both sides converge on the same wrapped JSON shape (e.g. `{"Soda":{...}}`) — otherwise a directly
+    // registered `Soda` codec would emit a flat `{"kind":"cola"}` that the parent-registered decoder rejects.
+    //
+    // Standard-library sealed traits (e.g. `scala.deriving.Mirror`, which is an ancestor of every case object's
+    // mirror) are intentionally excluded — they are internal markers, not serialization targets.
+    def promoteToSealedParent(tpe: TypeRepr): TypeRepr = {
+      val selfSym    = tpe.typeSymbol
+      val candidates = tpe.baseClasses.filter { base =>
+        base != selfSym &&
+        base.flags.is(Flags.Sealed) &&
+        (base.flags.is(Flags.Trait) || base.flags.is(Flags.Abstract)) &&
+        base != defn.AnyClass &&
+        base != defn.ObjectClass &&
+        base != defn.AnyValClass &&
+        !isStdlibSymbol(base)
+      }
+      candidates.headOption match {
+        case Some(parent) => tpe.baseType(parent)
+        case None         => tpe
+      }
+    }
+
+    def isStdlibSymbol(sym: Symbol): Boolean = {
+      val name = sym.fullName
+      name.startsWith("scala.") || name.startsWith("java.") || name.startsWith("javax.")
+    }
+
     val typesNeedingCodecs: List[TypeRepr] = boundaryMethods
       .flatMap { m =>
         val resolved = interfaceRepr.memberType(m)
-        collect(resolved).flatMap(expandTypeArgs)
+        collect(resolved).flatMap(expandTypeArgs).map(promoteToSealedParent)
       }
       .foldLeft(List.empty[TypeRepr]) { (acc, t) =>
         // Dedupe by semantic equivalence — avoids emitting duplicate register() calls.
