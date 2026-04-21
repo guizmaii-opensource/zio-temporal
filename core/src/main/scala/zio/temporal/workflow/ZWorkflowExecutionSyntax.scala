@@ -2,6 +2,7 @@ package zio.temporal.workflow
 
 import zio.*
 import zio.temporal.*
+import zio.temporal.json.ZTemporalCodec
 import zio.temporal.internal.{InvocationMacroUtils, SharedCompileTimeMessages, TemporalWorkflowFacade}
 
 import scala.quoted.*
@@ -49,7 +50,7 @@ trait ZWorkflowExecutionSyntax {
     * @return
     *   the workflow result
     */
-  inline def execute[R](inline f: R)(using javaTypeTag: JavaTypeTag[R]): TemporalIO[R] =
+  inline def execute[R](inline f: R)(using javaTypeTag: ZTemporalCodec[R]): TemporalIO[R] =
     ${ ZWorkflowExecutionSyntax.executeImpl[R]('f, 'javaTypeTag) }
 
   /** Executes the given workflow with a given timeout. '''Waits''' for the workflow to finish. Accepts the workflow
@@ -77,7 +78,7 @@ trait ZWorkflowExecutionSyntax {
   inline def executeWithTimeout[R](
     timeout:           Duration
   )(inline f:          R
-  )(using javaTypeTag: JavaTypeTag[R]
+  )(using javaTypeTag: ZTemporalCodec[R]
   ): TemporalIO[R] =
     ${ ZWorkflowExecutionSyntax.executeWithTimeoutImpl[R]('timeout, 'f, 'javaTypeTag) }
 }
@@ -108,7 +109,7 @@ object ZWorkflowExecutionSyntax {
 
   def executeImpl[R: Type](
     f:           Expr[R],
-    javaTypeTag: Expr[JavaTypeTag[R]]
+    javaTypeTag: Expr[ZTemporalCodec[R]]
   )(using q:     Quotes
   ): Expr[TemporalIO[R]] = {
     import q.reflect.*
@@ -134,7 +135,7 @@ object ZWorkflowExecutionSyntax {
   def executeWithTimeoutImpl[R: Type](
     timeout:     Expr[Duration],
     f:           Expr[R],
-    javaTypeTag: Expr[JavaTypeTag[R]]
+    javaTypeTag: Expr[ZTemporalCodec[R]]
   )(using q:     Quotes
   ): Expr[TemporalIO[R]] = {
     import q.reflect.*

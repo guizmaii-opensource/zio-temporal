@@ -7,7 +7,7 @@ import io.temporal.client.WorkflowClientOptions
 import io.temporal.common.context.ContextPropagator
 import io.temporal.common.converter._
 import io.temporal.common.interceptors.WorkflowClientInterceptor
-import zio.temporal.json.JacksonDataConverter
+import zio.temporal.json.{CodecRegistry, ZioJsonDataConverter}
 import scala.jdk.CollectionConverters._
 
 /** Represents Temporal workflow client options
@@ -124,6 +124,26 @@ object ZWorkflowClientOptions extends ConfigurationCompanion[ZWorkflowClientOpti
   def withDataConverter(value: => DataConverter): Configure =
     configure(_.withDataConverter(value))
 
+  /** Convenience: configure the client to use a zio-json [[DataConverter]] backed by a [[CodecRegistry]] containing the
+    * supplied codecs. Equivalent to:
+    *
+    * {{{
+    *   ZWorkflowClientOptions.withDataConverter(
+    *     ZioJsonDataConverter.make(CodecRegistry.of(codecs: _*))
+    *   )
+    * }}}
+    */
+  def withCodecs(codecs: zio.temporal.json.ZTemporalCodec[_]*): Configure =
+    withDataConverter(
+      zio.temporal.json.ZioJsonDataConverter.make(zio.temporal.json.CodecRegistry.of(codecs: _*))
+    )
+
+  /** Convenience: configure the client to use the supplied [[CodecRegistry]] directly. Useful when the same registry is
+    * shared between a client and a worker.
+    */
+  def withCodecRegistry(registry: zio.temporal.json.CodecRegistry): Configure =
+    withDataConverter(zio.temporal.json.ZioJsonDataConverter.make(registry))
+
   /** @see
     *   [[ZWorkflowClientOptions.withInterceptors]]
     */
@@ -186,7 +206,7 @@ object ZWorkflowClientOptions extends ConfigurationCompanion[ZWorkflowClientOpti
       ZIO.config(config).map { case (namespace, identityCfg, binaryChecksum) =>
         new ZWorkflowClientOptions(
           namespace = namespace,
-          dataConverter = JacksonDataConverter.make(),
+          dataConverter = ZioJsonDataConverter.make(new CodecRegistry),
           interceptors = Nil,
           identity = identityCfg,
           binaryChecksum = binaryChecksum,

@@ -20,7 +20,7 @@ import java.util.concurrent.{CompletableFuture, TimeUnit}
 import scala.language.implicitConversions
 import scala.reflect.ClassTag
 import zio.{Duration, UIO, ZIO}
-import zio.temporal.JavaTypeTag
+import zio.temporal.json.ZTemporalCodec
 import zio.temporal.activity.{ZActivityStub, ZActivityStubImpl}
 import zio.temporal.schedules.ZScheduleAction
 import zio.temporal.workflow.{ZChildWorkflowStub, ZChildWorkflowStubImpl, ZWorkflowStub, ZWorkflowStubImpl}
@@ -51,7 +51,7 @@ object TemporalWorkflowFacade {
   def execute[R](
     stub:                 WorkflowStub,
     args:                 List[Any]
-  )(implicit javaTypeTag: JavaTypeTag[R]
+  )(implicit javaTypeTag: ZTemporalCodec[R]
   ): CompletableFuture[R] = {
     start(stub, args)
     stub.getResultAsync(javaTypeTag.klass, javaTypeTag.genericType)
@@ -61,7 +61,7 @@ object TemporalWorkflowFacade {
     stub:                 WorkflowStub,
     timeout:              Duration,
     args:                 List[Any]
-  )(implicit javaTypeTag: JavaTypeTag[R]
+  )(implicit javaTypeTag: ZTemporalCodec[R]
   ): CompletableFuture[R] = {
     start(stub, args)
     stub.getResultAsync(timeout.toNanos, TimeUnit.NANOSECONDS, javaTypeTag.klass, javaTypeTag.genericType)
@@ -70,7 +70,7 @@ object TemporalWorkflowFacade {
   def executeChild[R](
     stub:                 ChildWorkflowStub,
     args:                 List[Any]
-  )(implicit javaTypeTag: JavaTypeTag[R]
+  )(implicit javaTypeTag: ZTemporalCodec[R]
   ): R = {
     stub.execute(javaTypeTag.klass, javaTypeTag.genericType, args.asInstanceOf[List[AnyRef]]: _*)
   }
@@ -78,7 +78,7 @@ object TemporalWorkflowFacade {
   def executeChildAsync[R](
     stub:                 ChildWorkflowStub,
     args:                 List[Any]
-  )(implicit javaTypeTag: JavaTypeTag[R]
+  )(implicit javaTypeTag: ZTemporalCodec[R]
   ): Promise[R] = {
     stub.executeAsync(javaTypeTag.klass, javaTypeTag.genericType, args.asInstanceOf[List[AnyRef]]: _*)
   }
@@ -88,7 +88,7 @@ object TemporalWorkflowFacade {
     stubbedClass:         Class[_],
     methodName:           String,
     args:                 List[Any]
-  )(implicit javaTypeTag: JavaTypeTag[R]
+  )(implicit javaTypeTag: ZTemporalCodec[R]
   ): R = {
     stub.execute[R](
       ClassTagUtils.getActivityType(stubbedClass, methodName),
@@ -103,7 +103,7 @@ object TemporalWorkflowFacade {
     stubbedClass:         Class[_],
     methodName:           String,
     args:                 List[Any]
-  )(implicit javaTypeTag: JavaTypeTag[R]
+  )(implicit javaTypeTag: ZTemporalCodec[R]
   ): Promise[R] = {
     stub.executeAsync[R](
       ClassTagUtils.getActivityType(stubbedClass, methodName),
@@ -150,7 +150,7 @@ object TemporalWorkflowFacade {
     stub:                 WorkflowStub,
     name:                 String,
     args:                 List[Any]
-  )(implicit javaTypeTag: JavaTypeTag[R]
+  )(implicit javaTypeTag: ZTemporalCodec[R]
   ): R =
     stub.query[R](
       name,

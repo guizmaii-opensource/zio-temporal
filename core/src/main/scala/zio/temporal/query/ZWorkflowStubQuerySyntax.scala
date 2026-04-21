@@ -1,6 +1,7 @@
 package zio.temporal.query
 
-import zio.temporal.{JavaTypeTag, TemporalIO}
+import zio.temporal.{TemporalIO}
+import zio.temporal.json.ZTemporalCodec
 import zio.temporal.internal.{InvocationMacroUtils, SharedCompileTimeMessages, TemporalWorkflowFacade}
 import zio.temporal.workflow.ZWorkflowStub
 import scala.quoted._
@@ -25,14 +26,14 @@ trait ZWorkflowStubQuerySyntax {
     * @return
     *   the query method result
     */
-  inline def query[R](inline f: R)(using javaTypeTag: JavaTypeTag[R]): TemporalIO[R] =
+  inline def query[R](inline f: R)(using javaTypeTag: ZTemporalCodec[R]): TemporalIO[R] =
     ${ ZWorkflowStubQuerySyntax.queryImpl[R]('f, 'javaTypeTag) }
 }
 
 object ZWorkflowStubQuerySyntax {
   def queryImpl[R: Type](
     f:           Expr[R],
-    javaTypeTag: Expr[JavaTypeTag[R]]
+    javaTypeTag: Expr[ZTemporalCodec[R]]
   )(using q:     Quotes
   ): Expr[TemporalIO[R]] = {
     import q.reflect._

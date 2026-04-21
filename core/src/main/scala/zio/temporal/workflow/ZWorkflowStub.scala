@@ -2,7 +2,8 @@ package zio.temporal.workflow
 
 import zio.Duration
 import io.temporal.client.WorkflowStub
-import zio.temporal.{JavaTypeTag, TemporalIO, TypeIsSpecified, ZWorkflowExecution, internalApi}
+import zio.temporal.{TemporalIO, TypeIsSpecified, ZWorkflowExecution, internalApi}
+import zio.temporal.json.ZTemporalCodec
 import zio.temporal.internal.{BasicStubOps, Stubs, TemporalInteraction}
 import zio.temporal.query.ZWorkflowStubQuerySyntax
 import zio.temporal.signal.{ZWorkflowClientSignalWithStartSyntax, ZWorkflowStubSignalSyntax}
@@ -23,10 +24,10 @@ sealed trait ZWorkflowStub extends BasicStubOps with ZWorkflowClientSignalWithSt
     * @return
     *   either interaction error or the workflow result
     */
-  def result[V: TypeIsSpecified: JavaTypeTag]: TemporalIO[V] =
+  def result[V: TypeIsSpecified: ZTemporalCodec]: TemporalIO[V] =
     untyped.result[V]
 
-  def result[V: TypeIsSpecified: JavaTypeTag](timeout: Duration): TemporalIO[Option[V]] =
+  def result[V: TypeIsSpecified: ZTemporalCodec](timeout: Duration): TemporalIO[Option[V]] =
     untyped.result[V](timeout)
 
   /** Request cancellation of a workflow execution.
@@ -127,7 +128,7 @@ object ZWorkflowStub
       * @throws io.temporal.client.WorkflowServiceException
       *   for all other failures including networking and service availability issues
       */
-    def query[R: TypeIsSpecified: JavaTypeTag](queryType: String, args: Any*): TemporalIO[R]
+    def query[R: TypeIsSpecified: ZTemporalCodec](queryType: String, args: Any*): TemporalIO[R]
 
     /** Fetches workflow result
       *
@@ -136,14 +137,14 @@ object ZWorkflowStub
       * @return
       *   either interaction error or the workflow result
       */
-    def result[V: TypeIsSpecified: JavaTypeTag]: TemporalIO[V]
+    def result[V: TypeIsSpecified: ZTemporalCodec]: TemporalIO[V]
 
-    def execute[V: TypeIsSpecified: JavaTypeTag](args: Any*): TemporalIO[V] =
+    def execute[V: TypeIsSpecified: ZTemporalCodec](args: Any*): TemporalIO[V] =
       start(args: _*) *> result[V]
 
-    def result[V: TypeIsSpecified: JavaTypeTag](timeout: Duration): TemporalIO[Option[V]]
+    def result[V: TypeIsSpecified: ZTemporalCodec](timeout: Duration): TemporalIO[Option[V]]
 
-    def executeWithTimeout[V: TypeIsSpecified: JavaTypeTag](timeout: Duration, args: Any*): TemporalIO[Option[V]] =
+    def executeWithTimeout[V: TypeIsSpecified: ZTemporalCodec](timeout: Duration, args: Any*): TemporalIO[Option[V]] =
       start(args: _*) *> result[V](timeout)
 
     /** Request cancellation of a workflow execution.
@@ -205,25 +206,29 @@ object ZWorkflowStub
       }
     }
 
-    override def query[R: TypeIsSpecified: JavaTypeTag](queryType: String, args: Any*): TemporalIO[R] = {
+    override def query[R: TypeIsSpecified: ZTemporalCodec](queryType: String, args: Any*): TemporalIO[R] = {
       TemporalInteraction.from {
         toJava
-          .query[R](queryType, JavaTypeTag[R].klass, JavaTypeTag[R].genericType, args.asInstanceOf[Seq[AnyRef]]: _*)
+          .query[R](queryType,
+                    ZTemporalCodec[R].klass,
+                    ZTemporalCodec[R].genericType,
+                    args.asInstanceOf[Seq[AnyRef]]: _*
+          )
       }
     }
 
-    override def result[V: TypeIsSpecified: JavaTypeTag]: TemporalIO[V] =
+    override def result[V: TypeIsSpecified: ZTemporalCodec]: TemporalIO[V] =
       TemporalInteraction.fromFuture {
-        toJava.getResultAsync(JavaTypeTag[V].klass, JavaTypeTag[V].genericType)
+        toJava.getResultAsync(ZTemporalCodec[V].klass, ZTemporalCodec[V].genericType)
       }
 
-    override def result[V: TypeIsSpecified: JavaTypeTag](timeout: Duration): TemporalIO[Option[V]] =
+    override def result[V: TypeIsSpecified: ZTemporalCodec](timeout: Duration): TemporalIO[Option[V]] =
       TemporalInteraction.fromFutureTimeout {
         toJava.getResultAsync(
           timeout.toNanos,
           TimeUnit.NANOSECONDS,
-          JavaTypeTag[V].klass,
-          JavaTypeTag[V].genericType
+          ZTemporalCodec[V].klass,
+          ZTemporalCodec[V].genericType
         )
       }
 

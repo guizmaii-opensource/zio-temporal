@@ -1,7 +1,8 @@
 package zio.temporal.activity
 
 import io.temporal.workflow.ActivityStub
-import zio.temporal.{JavaTypeTag, TypeIsSpecified, internalApi}
+import zio.temporal.{TypeIsSpecified, internalApi}
+import zio.temporal.json.ZTemporalCodec
 import zio.temporal.internal.{BasicStubOps, Stubs}
 import zio.temporal.workflow.ZAsync
 
@@ -36,7 +37,7 @@ object ZActivityStub extends Stubs[ZActivityStub] with ZActivityExecutionSyntax 
       * @return
       *   an activity result.
       */
-    def execute[R: TypeIsSpecified: JavaTypeTag](activityName: String, args: Any*): R
+    def execute[R: TypeIsSpecified: ZTemporalCodec](activityName: String, args: Any*): R
 
     /** Executes an activity asynchronously by its type name and arguments.
       *
@@ -49,24 +50,24 @@ object ZActivityStub extends Stubs[ZActivityStub] with ZActivityExecutionSyntax 
       * @return
       *   Promise to the activity result.
       */
-    def executeAsync[R: TypeIsSpecified: JavaTypeTag](activityName: String, args: Any*): ZAsync[R]
+    def executeAsync[R: TypeIsSpecified: ZTemporalCodec](activityName: String, args: Any*): ZAsync[R]
   }
 
   private[temporal] class UntypedImpl(val toJava: ActivityStub) extends Untyped {
-    override def execute[R: TypeIsSpecified: JavaTypeTag](activityName: String, args: Any*): R =
+    override def execute[R: TypeIsSpecified: ZTemporalCodec](activityName: String, args: Any*): R =
       toJava.execute[R](
         activityName,
-        JavaTypeTag[R].klass,
-        JavaTypeTag[R].genericType,
+        ZTemporalCodec[R].klass,
+        ZTemporalCodec[R].genericType,
         args.asInstanceOf[Seq[AnyRef]]: _*
       )
 
-    override def executeAsync[R: TypeIsSpecified: JavaTypeTag](activityName: String, args: Any*): ZAsync[R] =
+    override def executeAsync[R: TypeIsSpecified: ZTemporalCodec](activityName: String, args: Any*): ZAsync[R] =
       ZAsync.fromJava(
         toJava.executeAsync[R](
           activityName,
-          JavaTypeTag[R].klass,
-          JavaTypeTag[R].genericType,
+          ZTemporalCodec[R].klass,
+          ZTemporalCodec[R].genericType,
           args.asInstanceOf[Seq[AnyRef]]: _*
         )
       )
