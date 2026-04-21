@@ -123,6 +123,16 @@ final class ZioJsonPayloadConverter(registry: CodecRegistry) extends PayloadConv
     var decoder: JsonDecoder[_] | Null = registry.decoderForType(valueType)
     if (decoder eq null) decoder = registry.decoderForType(valueClass)
     if (decoder eq null) {
+      // Scala 3 erases primitive-union types like `Int | Null` to `java.lang.Object` at the JVM method
+      // signature level (a primitive slot cannot hold `null`). Temporal's worker reflects on that signature
+      // and asks the converter to decode into `Object`. A ground `Object` target carries no useful type
+      // information, so we decode in a content-aware way and return the closest boxed-primitive / Scala
+      // collection shape — mirroring what Jackson's default `ObjectMapper` would have produced. This keeps
+      // the workflow body's `case _: Int` / `case _: String` etc. pattern matches working without forcing
+      // users to hand-register a codec for a type they cannot spell (`Int | Null` has no `Mirror`).
+      if (valueClass eq classOf[Object]) {
+        return decodeAsAny(content).asInstanceOf[T]
+      }
       throw new DataConverterException(
         s"No ZTemporalCodec registered for decode target `${valueType.getTypeName}` (raw `${valueClass.getName}`).\n" +
           "Likely causes:\n" +
@@ -142,6 +152,39 @@ final class ZioJsonPayloadConverter(registry: CodecRegistry) extends PayloadConv
       case Left(err) => throw new DataConverterException(s"Failed to decode payload as ${valueType.getTypeName}: $err")
     }
   }
+
+  private def decodeAsAny(content: Payload): Any | Null = {
+    val json = content.getData.toStringUtf8
+    JsonDecoder[zio.json.ast.Json].decodeJson(json) match {
+      case Left(err)  => throw new DataConverterException(s"Failed to decode Object-typed payload: $err")
+      case Right(ast) => astToAny(ast)
+    }
+  }
+
+  /** Map a zio-json AST node to the closest Java-boxed / Scala-collection runtime value. The integer / long / double
+    * tiering for `Num` matches what Jackson would produce for an `Object`-typed target: a bare `42` deserializes to
+    * `Integer`, `9999999999` to `Long`, `3.14` to `Double`. This is what the workflow body's `case _: Int` pattern
+    * match expects.
+    */
+  private def astToAny(json: zio.json.ast.Json): Any | Null =
+    json match {
+      case zio.json.ast.Json.Null    => null
+      case zio.json.ast.Json.Bool(b) => java.lang.Boolean.valueOf(b)
+      case zio.json.ast.Json.Str(s)  => s
+      case zio.json.ast.Json.Num(bd) =>
+        // `java.math.BigDecimal.intValueExact` throws `ArithmeticException` if the value has a non-zero
+        // fractional part or doesn't fit the target width. Use it to pick the tightest boxed type.
+        try java.lang.Integer.valueOf(bd.intValueExact())
+        catch {
+          case _: ArithmeticException =>
+            try java.lang.Long.valueOf(bd.longValueExact())
+            catch {
+              case _: ArithmeticException => java.lang.Double.valueOf(bd.doubleValue)
+            }
+        }
+      case arr: zio.json.ast.Json.Arr => arr.elements.iterator.map(astToAny).toVector
+      case obj: zio.json.ast.Json.Obj => obj.fields.iterator.map { case (k, v) => k -> astToAny(v) }.toMap
+    }
 }
 
 object ZioJsonPayloadConverter {

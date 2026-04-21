@@ -82,6 +82,88 @@ class ZioJsonPayloadConverterSpec extends AnyWordSpec with Matchers {
         .build()
       a[DataConverterException] should be thrownBy converter.fromData(payload, classOf[User], classOf[User])
     }
+
+    // Scala 3 erases a workflow parameter typed `Int | Null` (or any primitive-union) to `java.lang.Object`
+    // at the JVM signature level. The Temporal worker then reflects on that method and calls
+    // `fromData(..., classOf[Object], classOf[Object])`. Without the JSON-shape fallback below, no codec
+    // matches and the worker task fails with "No ZTemporalCodec registered for decode target
+    // `java.lang.Object`". The fix decodes the payload in a content-aware way and returns a boxed primitive
+    // (or nested collection) so that the workflow body's `case _: Int` pattern match still succeeds.
+    "decode to java.lang.Integer when Object is the target and the payload is a valid int" in {
+      val converter = new ZioJsonPayloadConverter(new CodecRegistry())
+      val payload   = rawPayload("42")
+      val decoded   = converter.fromData(payload, classOf[Object], classOf[Object])
+      decoded shouldEqual java.lang.Integer.valueOf(42)
+      decoded shouldBe a[java.lang.Integer]
+    }
+
+    "decode to java.lang.Long when Object is the target and the payload exceeds Int range" in {
+      val converter = new ZioJsonPayloadConverter(new CodecRegistry())
+      val payload   = rawPayload("9999999999")
+      val decoded   = converter.fromData(payload, classOf[Object], classOf[Object])
+      decoded shouldEqual java.lang.Long.valueOf(9999999999L)
+      decoded shouldBe a[java.lang.Long]
+    }
+
+    "decode to java.lang.Double when Object is the target and the payload has a fractional part" in {
+      val converter = new ZioJsonPayloadConverter(new CodecRegistry())
+      val payload   = rawPayload("3.14")
+      val decoded   = converter.fromData(payload, classOf[Object], classOf[Object])
+      decoded shouldEqual java.lang.Double.valueOf(3.14)
+      decoded shouldBe a[java.lang.Double]
+    }
+
+    "decode to String when Object is the target and the payload is a JSON string" in {
+      val converter = new ZioJsonPayloadConverter(new CodecRegistry())
+      val payload   = rawPayload("\"hello\"")
+      val decoded   = converter.fromData(payload, classOf[Object], classOf[Object])
+      decoded shouldEqual "hello"
+    }
+
+    "decode to java.lang.Boolean when Object is the target and the payload is a JSON bool" in {
+      val converter = new ZioJsonPayloadConverter(new CodecRegistry())
+      converter.fromData(rawPayload("true"), classOf[Object], classOf[Object]) shouldEqual
+        java.lang.Boolean.TRUE
+      converter.fromData(rawPayload("false"), classOf[Object], classOf[Object]) shouldEqual
+        java.lang.Boolean.FALSE
+    }
+
+    "decode to null when Object is the target and the payload is JSON null" in {
+      val converter = new ZioJsonPayloadConverter(new CodecRegistry())
+      val decoded   = converter.fromData(rawPayload("null"), classOf[Object], classOf[Object])
+      decoded shouldBe null
+    }
+
+    "decode to Vector when Object is the target and the payload is a JSON array" in {
+      val converter = new ZioJsonPayloadConverter(new CodecRegistry())
+      val decoded   = converter.fromData(rawPayload("[1,2,3]"), classOf[Object], classOf[Object])
+      decoded shouldEqual Vector(
+        java.lang.Integer.valueOf(1),
+        java.lang.Integer.valueOf(2),
+        java.lang.Integer.valueOf(3)
+      )
+    }
+
+    "decode to Map when Object is the target and the payload is a JSON object" in {
+      val converter = new ZioJsonPayloadConverter(new CodecRegistry())
+      val decoded   = converter.fromData(rawPayload("""{"foo":1,"bar":"baz"}"""), classOf[Object], classOf[Object])
+      decoded shouldEqual Map("foo" -> java.lang.Integer.valueOf(1), "bar" -> "baz")
+    }
+
+    "Object fallback defers to a user-registered Any / Object codec when present" in {
+      // If a user explicitly registers a codec for `Object`/`Any`, the registry lookup wins and the
+      // content-aware fallback is never consulted — users keep control of the type.
+      val sentinel = "explicitly-registered-decoder"
+      val registry = new CodecRegistry()
+      val anyCodec = ZTemporalCodec.make[Any](
+        zio.json.JsonEncoder.string.contramap(_.toString),
+        zio.json.JsonDecoder.string.map(_ => sentinel)
+      )
+      registry.register(anyCodec)
+      val converter = new ZioJsonPayloadConverter(registry)
+      val decoded   = converter.fromData(rawPayload("\"whatever\""), classOf[Object], classOf[Object])
+      decoded shouldEqual sentinel
+    }
   }
 
   "CodecRegistry" should {
@@ -277,4 +359,11 @@ private final class InterfaceWalkTaggedImpl(val tag: String) extends InterfaceWa
 object ZioJsonPayloadConverterSpec {
   final case class User(id: Int, name: String) derives JsonCodec
   final case class Org(name: String) derives JsonCodec
+
+  private def rawPayload(json: String): Payload =
+    Payload
+      .newBuilder()
+      .putMetadata("encoding", ByteString.copyFromUtf8("json/zio"))
+      .setData(ByteString.copyFrom(json, StandardCharsets.UTF_8))
+      .build()
 }
