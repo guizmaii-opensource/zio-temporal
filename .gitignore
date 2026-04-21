@@ -21,3 +21,4 @@ website/static/api
 .bsp
 
 .worktrees/
+.claude/
