@@ -47,11 +47,53 @@ class ZTemporalCodecSpec extends AnyWordSpec with Matchers {
       c.decoder.decodeJson(c.encoder.encodeJson(t, None)) shouldEqual Right(t)
     }
 
-    "encode Unit as {} and decode any JSON to ()" in {
+    "encode Unit as the literal `{}` (no AST allocation on the hot path)" in {
       val c = ZTemporalCodec[Unit]
       c.encoder.encodeJson((), None).toString shouldEqual "{}"
-      c.decoder.decodeJson("{}") shouldEqual Right(())
-      c.decoder.decodeJson("42") shouldEqual Right(()) // accepts any JSON
+    }
+
+    "encode Unit as Json.Obj.empty via toJsonAST" in {
+      val c      = ZTemporalCodec[Unit]
+      val astOpt = c.encoder.toJsonAST(())
+      astOpt shouldEqual Right(zio.json.ast.Json.Obj.empty)
+      // And the constant-singleton contract — toJsonAST returns the shared empty instance.
+      astOpt.toOption.get should be theSameInstanceAs zio.json.ast.Json.Obj.empty
+    }
+
+    "decode {} to ()" in {
+      ZTemporalCodec[Unit].decoder.decodeJson("{}") shouldEqual Right(())
+    }
+
+    "decode an arbitrary object payload to ()" in {
+      ZTemporalCodec[Unit].decoder.decodeJson("""{"foo":42,"bar":"hi"}""") shouldEqual Right(())
+    }
+
+    "decode JSON primitives (number / string / boolean / null) to ()" in {
+      val c = ZTemporalCodec[Unit]
+      c.decoder.decodeJson("42") shouldEqual Right(())
+      c.decoder.decodeJson("\"hello\"") shouldEqual Right(())
+      c.decoder.decodeJson("true") shouldEqual Right(())
+      c.decoder.decodeJson("null") shouldEqual Right(())
+    }
+
+    "decode an array payload to ()" in {
+      ZTemporalCodec[Unit].decoder.decodeJson("[1,2,3]") shouldEqual Right(())
+    }
+
+    "decode from an already-parsed Json AST to () without allocating" in {
+      val c   = ZTemporalCodec[Unit]
+      val ast = zio.json.ast.Json.Num(BigDecimal(42))
+      c.decoder.fromJsonAST(ast) shouldEqual Right(())
+    }
+
+    "round-trip: decode(encode(())) == ()" in {
+      val c       = ZTemporalCodec[Unit]
+      val encoded = c.encoder.encodeJson((), None)
+      c.decoder.decodeJson(encoded) shouldEqual Right(())
+    }
+
+    "ZTemporalCodec[Unit].klass is classOf[Unit]" in {
+      ZTemporalCodec[Unit].klass shouldEqual classOf[Unit]
     }
 
     "auto-derives a codec for a case class from separate encoder+decoder" in {

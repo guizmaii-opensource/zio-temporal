@@ -89,12 +89,43 @@ object ZTemporalCodec extends LowPriorityZTemporalCodecInstances0 with LowPriori
   /** Codec for `Unit`. zio-json does not ship one — `Unit` is a Scala-only concept — and Temporal uses it everywhere
     * (activities returning unit, signals with no payload, etc.). Serialized as an empty JSON object `{}`. Accepts any
     * JSON on decode, matching the behaviour of the old Jackson-based `BoxedUnitModule`.
+    *
+    * Implemented directly against zio-json's `Write` and `RetractReader` rather than going through
+    * `JsonEncoder[Json].contramap` / `JsonDecoder[Json].map`, so:
+    *   - encode writes the two characters `{` `}` straight to the output — no intermediate `Json.Obj` allocation.
+    *   - decode calls `Lexer.skipValue` to drain whatever JSON is in the stream — no intermediate AST allocation.
+    *   - `toJsonAST` returns [[zio.json.ast.Json.Obj.empty]], a constant singleton.
     */
+  // Cache the `Right(emptyObj)` wrapper too — `toJsonAST` is on the hot path and `Right.apply` allocates otherwise.
+  private val unitToJsonASTResult: Either[String, zio.json.ast.Json] = Right(zio.json.ast.Json.Obj.empty)
+
+  given unitEncoder: JsonEncoder[Unit] =
+    new JsonEncoder.AbstractJsonEncoder[Unit] {
+      override def unsafeEncode(a: Unit, indent: Option[Int], out: zio.json.internal.Write): Unit =
+        out.write('{', '}')
+
+      override def toJsonAST(a: Unit): Either[String, zio.json.ast.Json] =
+        unitToJsonASTResult
+    }
+
+  given unitDecoder: JsonDecoder[Unit] =
+    new JsonDecoder.AbstractJsonDecoder[Unit] {
+      override def unsafeDecode(trace: List[zio.json.JsonError], in: zio.json.internal.RetractReader): Unit =
+        // Drain whatever JSON is in the stream; a Unit decoder is tolerant of any payload shape.
+        // `Lexer.skipValue` → `skipNumber` throws `UnexpectedEnd` when a bare number runs to EOF
+        // (e.g. the input `"42"`): `skipNumber` keeps reading digits until `readChar` hits EOF. For
+        // Unit semantics "EOF reached" is the same as "nothing more to consume" — both decode to ().
+        try zio.json.internal.Lexer.skipValue(trace, in)
+        catch {
+          case _: zio.json.internal.UnexpectedEnd => ()
+        }
+
+      override def unsafeFromJsonAST(trace: List[zio.json.JsonError], json: zio.json.ast.Json): Unit = ()
+    }
+
   given unitCodec: ZTemporalCodec[Unit] = {
-    val encoder: JsonEncoder[Unit] = JsonEncoder[zio.json.ast.Json].contramap(_ => zio.json.ast.Json.Obj())
-    val decoder: JsonDecoder[Unit] = JsonDecoder[zio.json.ast.Json].map(_ => ())
     given classTag: ClassTag[Unit] = ClassTag.Unit
-    new Kind0[Unit](encoder, decoder)
+    new Kind0[Unit](unitEncoder, unitDecoder)
   }
 
   /** Bridge: when a `JsonCodec[A]` is in scope (e.g. from `final case class Foo(...) derives JsonCodec`), expose its
