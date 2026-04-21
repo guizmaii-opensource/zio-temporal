@@ -72,24 +72,24 @@ object TemporalInternalsPayloadConverter {
   /** Minimal shape of an internal-type codec: encode a value to a JSON string, decode a JSON string back. */
   private trait InternalCodec {
     def encode(value: Any): String
-    def decode(body: String): Any
+    def decode(body:  String): Any
   }
 
   /** Reflective codec for a plain POJO. Encodes each declared field as a JSON property keyed by the field's declared
-    * name; decodes by instantiating via the no-arg constructor and setting each field from the parsed JSON. Field
-    * order is driven by `Class#getDeclaredFields` and cached once at init.
+    * name; decodes by instantiating via the no-arg constructor and setting each field from the parsed JSON. Field order
+    * is driven by `Class#getDeclaredFields` and cached once at init.
     */
   private final class ReflectiveCodec(klass: Class[_], fields: Array[Field]) extends InternalCodec {
 
     override def encode(value: Any): String = {
       val builder = new java.lang.StringBuilder(64)
       builder.append('{')
-      var index     = 0
-      var firstOut  = true
+      var index    = 0
+      var firstOut = true
       while (index < fields.length) {
         val field    = fields(index)
         val rawValue = field.get(value)
-        val jsonNull = rawValue == null
+        val jsonNull = rawValue.asInstanceOf[AnyRef] eq null
         if (jsonNull) {
           if (!firstOut) builder.append(',') else firstOut = false
           appendString(builder, field.getName)
@@ -116,7 +116,7 @@ object TemporalInternalsPayloadConverter {
         case Left(err) =>
           throw new DataConverterException(s"Failed to parse ${klass.getName} payload: $err")
       }
-      val ctor     = klass.getDeclaredConstructor()
+      val ctor = klass.getDeclaredConstructor()
       ctor.setAccessible(true)
       val instance = ctor.newInstance()
       val map      = parsed.toMap
@@ -138,13 +138,13 @@ object TemporalInternalsPayloadConverter {
       while (index < raw.length) {
         val character = raw.charAt(index)
         character match {
-          case '"'  => builder.append("\\\"")
-          case '\\' => builder.append("\\\\")
-          case '\n' => builder.append("\\n")
-          case '\r' => builder.append("\\r")
-          case '\t' => builder.append("\\t")
-          case '\b' => builder.append("\\b")
-          case '\f' => builder.append("\\f")
+          case '"'                           => builder.append("\\\"")
+          case '\\'                          => builder.append("\\\\")
+          case '\n'                          => builder.append("\\n")
+          case '\r'                          => builder.append("\\r")
+          case '\t'                          => builder.append("\\t")
+          case '\b'                          => builder.append("\\b")
+          case '\f'                          => builder.append("\\f")
           case character if character < 0x20 =>
             builder.append("\\u%04x".format(character.toInt))
           case character => builder.append(character)
@@ -178,11 +178,11 @@ object TemporalInternalsPayloadConverter {
       } else if (fieldType.isArray && (fieldType.getComponentType eq classOf[String])) {
         val arrayValue = rawValue.asInstanceOf[Array[String]]
         builder.append('[')
-        var index     = 0
+        var index = 0
         while (index < arrayValue.length) {
           if (index > 0) builder.append(',')
           val element = arrayValue(index)
-          if (element == null) builder.append("null")
+          if (element eq null) builder.append("null")
           else appendString(builder, element)
           index += 1
         }

@@ -22,3 +22,4 @@ website/static/api
 
 .worktrees/
 .claude/
+disable-jgit.sbt

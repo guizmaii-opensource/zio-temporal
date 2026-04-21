@@ -128,7 +128,7 @@ class TemporalInternalsPayloadConverterSpec extends AnyWordSpec with Matchers {
       val payloads = dataConverter
         .toPayloads(value)
         .orElseThrow(() => new AssertionError("expected non-empty"))
-      val payload  = payloads.getPayloads(0)
+      val payload = payloads.getPayloads(0)
       payload.getMetadataOrThrow("encoding").toStringUtf8 shouldEqual "json/temporal-internal"
 
       val decoded = dataConverter.fromPayloads(
