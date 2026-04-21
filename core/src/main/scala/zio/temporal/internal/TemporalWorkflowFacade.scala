@@ -49,66 +49,66 @@ object TemporalWorkflowFacade {
   }
 
   def execute[R](
-    stub:                 WorkflowStub,
-    args:                 List[Any]
-  )(implicit javaTypeTag: ZTemporalCodec[R]
+    stub:           WorkflowStub,
+    args:           List[Any]
+  )(implicit codec: ZTemporalCodec[R]
   ): CompletableFuture[R] = {
     start(stub, args)
-    stub.getResultAsync(javaTypeTag.klass, javaTypeTag.genericType)
+    stub.getResultAsync(codec.klass, codec.genericType)
   }
 
   def executeWithTimeout[R](
-    stub:                 WorkflowStub,
-    timeout:              Duration,
-    args:                 List[Any]
-  )(implicit javaTypeTag: ZTemporalCodec[R]
+    stub:           WorkflowStub,
+    timeout:        Duration,
+    args:           List[Any]
+  )(implicit codec: ZTemporalCodec[R]
   ): CompletableFuture[R] = {
     start(stub, args)
-    stub.getResultAsync(timeout.toNanos, TimeUnit.NANOSECONDS, javaTypeTag.klass, javaTypeTag.genericType)
+    stub.getResultAsync(timeout.toNanos, TimeUnit.NANOSECONDS, codec.klass, codec.genericType)
   }
 
   def executeChild[R](
-    stub:                 ChildWorkflowStub,
-    args:                 List[Any]
-  )(implicit javaTypeTag: ZTemporalCodec[R]
+    stub:           ChildWorkflowStub,
+    args:           List[Any]
+  )(implicit codec: ZTemporalCodec[R]
   ): R = {
-    stub.execute(javaTypeTag.klass, javaTypeTag.genericType, args.asInstanceOf[List[AnyRef]]: _*)
+    stub.execute(codec.klass, codec.genericType, args.asInstanceOf[List[AnyRef]]: _*)
   }
 
   def executeChildAsync[R](
-    stub:                 ChildWorkflowStub,
-    args:                 List[Any]
-  )(implicit javaTypeTag: ZTemporalCodec[R]
+    stub:           ChildWorkflowStub,
+    args:           List[Any]
+  )(implicit codec: ZTemporalCodec[R]
   ): Promise[R] = {
-    stub.executeAsync(javaTypeTag.klass, javaTypeTag.genericType, args.asInstanceOf[List[AnyRef]]: _*)
+    stub.executeAsync(codec.klass, codec.genericType, args.asInstanceOf[List[AnyRef]]: _*)
   }
 
   def executeActivity[R](
-    stub:                 ActivityStub,
-    stubbedClass:         Class[_],
-    methodName:           String,
-    args:                 List[Any]
-  )(implicit javaTypeTag: ZTemporalCodec[R]
+    stub:           ActivityStub,
+    stubbedClass:   Class[_],
+    methodName:     String,
+    args:           List[Any]
+  )(implicit codec: ZTemporalCodec[R]
   ): R = {
     stub.execute[R](
       ClassTagUtils.getActivityType(stubbedClass, methodName),
-      javaTypeTag.klass,
-      javaTypeTag.genericType,
+      codec.klass,
+      codec.genericType,
       args.asInstanceOf[List[AnyRef]]: _*
     )
   }
 
   def executeActivityAsync[R](
-    stub:                 ActivityStub,
-    stubbedClass:         Class[_],
-    methodName:           String,
-    args:                 List[Any]
-  )(implicit javaTypeTag: ZTemporalCodec[R]
+    stub:           ActivityStub,
+    stubbedClass:   Class[_],
+    methodName:     String,
+    args:           List[Any]
+  )(implicit codec: ZTemporalCodec[R]
   ): Promise[R] = {
     stub.executeAsync[R](
       ClassTagUtils.getActivityType(stubbedClass, methodName),
-      javaTypeTag.klass,
-      javaTypeTag.genericType,
+      codec.klass,
+      codec.genericType,
       args.asInstanceOf[List[AnyRef]]: _*
     )
   }
@@ -147,15 +147,15 @@ object TemporalWorkflowFacade {
   }
 
   def query[R](
-    stub:                 WorkflowStub,
-    name:                 String,
-    args:                 List[Any]
-  )(implicit javaTypeTag: ZTemporalCodec[R]
+    stub:           WorkflowStub,
+    name:           String,
+    args:           List[Any]
+  )(implicit codec: ZTemporalCodec[R]
   ): R =
     stub.query[R](
       name,
-      javaTypeTag.klass,
-      javaTypeTag.genericType,
+      codec.klass,
+      codec.genericType,
       args.asInstanceOf[List[AnyRef]]: _*
     )
 

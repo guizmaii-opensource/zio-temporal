@@ -19,8 +19,8 @@ import scala.jdk.OptionConverters._
 object ScalapbPayloadConverterSpec {
   case class TemporaryClass(value: Int)
   object TemporaryClass {
-    implicit val encoder: JsonEncoder[TemporaryClass] = DeriveJsonEncoder.gen[TemporaryClass]
-    implicit val decoder: JsonDecoder[TemporaryClass] = DeriveJsonDecoder.gen[TemporaryClass]
+    given JsonEncoder[TemporaryClass] = DeriveJsonEncoder.gen[TemporaryClass]
+    given JsonDecoder[TemporaryClass] = DeriveJsonDecoder.gen[TemporaryClass]
   }
 }
 

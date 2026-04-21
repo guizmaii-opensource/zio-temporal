@@ -6,7 +6,7 @@ import com.example.payments.workflows._
 import zio._
 import zio.temporal._
 import zio.temporal.json.CodecRegistry
-import zio.temporal.protobuf.ProtobufDataConverter
+import zio.temporal.protobuf.{ProtobufDataConverter, scalapbMessageZTemporalCodec}
 import zio.temporal.worker.ZWorker
 import zio.temporal.worker.ZWorkerFactory
 import zio.temporal.worker.ZWorkerFactoryOptions
@@ -25,7 +25,13 @@ object ExampleModule {
 
   val clientOptions: Layer[Config.Error, ZWorkflowClientOptions] =
     ZWorkflowClientOptions.make @@
-      ZWorkflowClientOptions.withDataConverter(ProtobufDataConverter.make(new CodecRegistry))
+      ZWorkflowClientOptions.withDataConverter(
+        ProtobufDataConverter.make(
+          new CodecRegistry()
+            .addInterface[PaymentWorkflow]
+            .addInterface[PaymentActivity]
+        )
+      )
 
   val worker: URLayer[PaymentActivity with ZWorkerFactory, Unit] =
     ZLayer.fromZIO {

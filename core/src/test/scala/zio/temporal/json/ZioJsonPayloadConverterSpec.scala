@@ -112,13 +112,13 @@ class ZioJsonPayloadConverterSpec extends AnyWordSpec with Matchers {
 object ZioJsonPayloadConverterSpec {
   final case class User(id: Int, name: String)
   object User {
-    implicit val encoder: JsonEncoder[User] = DeriveJsonEncoder.gen[User]
-    implicit val decoder: JsonDecoder[User] = DeriveJsonDecoder.gen[User]
+    given JsonEncoder[User] = DeriveJsonEncoder.gen[User]
+    given JsonDecoder[User] = DeriveJsonDecoder.gen[User]
   }
 
   final case class Org(name: String)
   object Org {
-    implicit val encoder: JsonEncoder[Org] = DeriveJsonEncoder.gen[Org]
-    implicit val decoder: JsonDecoder[Org] = DeriveJsonDecoder.gen[Org]
+    given JsonEncoder[Org] = DeriveJsonEncoder.gen[Org]
+    given JsonDecoder[Org] = DeriveJsonDecoder.gen[Org]
   }
 }

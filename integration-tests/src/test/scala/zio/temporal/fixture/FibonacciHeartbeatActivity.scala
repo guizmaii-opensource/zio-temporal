@@ -15,8 +15,8 @@ trait FibonacciHeartbeatActivity {
 object FibonacciHeartbeatActivityImpl {
   case class HeartbeatDetails(sum: BigDecimal, curr: Int, prev: Int, step: Int)
   object HeartbeatDetails {
-    implicit val encoder: JsonEncoder[HeartbeatDetails] = DeriveJsonEncoder.gen[HeartbeatDetails]
-    implicit val decoder: JsonDecoder[HeartbeatDetails] = DeriveJsonDecoder.gen[HeartbeatDetails]
+    given JsonEncoder[HeartbeatDetails] = DeriveJsonEncoder.gen[HeartbeatDetails]
+    given JsonDecoder[HeartbeatDetails] = DeriveJsonDecoder.gen[HeartbeatDetails]
   }
 }
 

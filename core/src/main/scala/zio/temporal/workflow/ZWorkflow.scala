@@ -228,8 +228,8 @@ object ZWorkflow extends ZWorkflowVersionSpecific {
     * @see
     *   [[mutableSideEffect]]
     */
-  def sideEffect[R](f: () => R)(implicit javaTypeTag: ZTemporalCodec[R]): R =
-    Workflow.sideEffect[R](javaTypeTag.klass, javaTypeTag.genericType, () => f())
+  def sideEffect[R](f: () => R)(implicit codec: ZTemporalCodec[R]): R =
+    Workflow.sideEffect[R](codec.klass, codec.genericType, () => f())
 
   /** `mutableSideEffect` is similar to [[sideEffect]] in allowing calls of non-deterministic functions from workflow
     * code.
@@ -262,12 +262,12 @@ object ZWorkflow extends ZWorkflowVersionSpecific {
     *   [[sideEffect]]
     */
   def mutableSideEffect[R](
-    id:                   String,
-    updated:              (R, R) => Boolean,
-    f:                    () => R
-  )(implicit javaTypeTag: ZTemporalCodec[R]
+    id:             String,
+    updated:        (R, R) => Boolean,
+    f:              () => R
+  )(implicit codec: ZTemporalCodec[R]
   ): R =
-    Workflow.mutableSideEffect(id, javaTypeTag.klass, javaTypeTag.genericType, (a, b) => updated(a, b), () => f())
+    Workflow.mutableSideEffect(id, codec.klass, codec.genericType, (a, b) => updated(a, b), () => f())
 
   /** Returns current timestamp
     *
@@ -628,8 +628,8 @@ object ZWorkflow extends ZWorkflowVersionSpecific {
     * @return
     *   Some of deserialized Memo or None if the key is not present in the memo
     */
-  def getMemo[T](key: String)(implicit javaTypeTag: ZTemporalCodec[T]): Option[T] =
-    Option(Workflow.getMemo(key, javaTypeTag.klass, javaTypeTag.genericType))
+  def getMemo[T](key: String)(implicit codec: ZTemporalCodec[T]): Option[T] =
+    Option(Workflow.getMemo(key, codec.klass, codec.genericType))
 
   /** Invokes function retrying in case of failures according to retry options. Synchronous variant.
     *

@@ -25,8 +25,8 @@ trait ZChildWorkflowExecutionSyntax {
     * @return
     *   the workflow result
     */
-  inline def execute[R](inline f: R)(using javaTypeTag: ZTemporalCodec[R]): R =
-    ${ ZChildWorkflowExecutionSyntax.executeImpl[R]('f, 'javaTypeTag) }
+  inline def execute[R](inline f: R)(using codec: ZTemporalCodec[R]): R =
+    ${ ZChildWorkflowExecutionSyntax.executeImpl[R]('f, 'codec) }
 
   /** Executes the given child workflow asynchronously. Accepts the workflow method invocation
     *
@@ -46,15 +46,15 @@ trait ZChildWorkflowExecutionSyntax {
     * @return
     *   the workflow result (async)
     */
-  inline def executeAsync[R](inline f: R)(using javaTypeTag: ZTemporalCodec[R]): ZAsync[R] =
-    ${ ZChildWorkflowExecutionSyntax.executeAsyncImpl[R]('f, 'javaTypeTag) }
+  inline def executeAsync[R](inline f: R)(using codec: ZTemporalCodec[R]): ZAsync[R] =
+    ${ ZChildWorkflowExecutionSyntax.executeAsyncImpl[R]('f, 'codec) }
 }
 
 object ZChildWorkflowExecutionSyntax {
   def executeImpl[R: Type](
-    f:           Expr[R],
-    javaTypeTag: Expr[ZTemporalCodec[R]]
-  )(using q:     Quotes
+    f:       Expr[R],
+    codec:   Expr[ZTemporalCodec[R]]
+  )(using q: Quotes
   ): Expr[R] = {
     import q.reflect.*
     val macroUtils = new InvocationMacroUtils[q.type]
@@ -70,14 +70,14 @@ object ZChildWorkflowExecutionSyntax {
     val stub = invocation.selectJavaReprOf[io.temporal.workflow.ChildWorkflowStub]
 
     '{
-      TemporalWorkflowFacade.executeChild($stub, ${ method.argsExpr })($javaTypeTag)
+      TemporalWorkflowFacade.executeChild($stub, ${ method.argsExpr })($codec)
     }.debugged(SharedCompileTimeMessages.generateChildWorkflowExecute)
   }
 
   def executeAsyncImpl[R: Type](
-    f:           Expr[R],
-    javaTypeTag: Expr[ZTemporalCodec[R]]
-  )(using q:     Quotes
+    f:       Expr[R],
+    codec:   Expr[ZTemporalCodec[R]]
+  )(using q: Quotes
   ): Expr[ZAsync[R]] = {
     import q.reflect.*
     val macroUtils = new InvocationMacroUtils[q.type]
@@ -94,7 +94,7 @@ object ZChildWorkflowExecutionSyntax {
 
     '{
       ZAsync.fromJava(
-        TemporalWorkflowFacade.executeChildAsync($stub, ${ method.argsExpr })($javaTypeTag)
+        TemporalWorkflowFacade.executeChildAsync($stub, ${ method.argsExpr })($codec)
       )
     }.debugged(SharedCompileTimeMessages.generatedChildWorkflowExecuteAsync)
   }

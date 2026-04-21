@@ -8,14 +8,14 @@ import zio.temporal.workflow._
 
 case class TransferError(msg: String) extends Exception(msg)
 object TransferError {
-  implicit val encoder: JsonEncoder[TransferError] = DeriveJsonEncoder.gen[TransferError]
-  implicit val decoder: JsonDecoder[TransferError] = DeriveJsonDecoder.gen[TransferError]
+  given JsonEncoder[TransferError] = DeriveJsonEncoder.gen[TransferError]
+  given JsonDecoder[TransferError] = DeriveJsonDecoder.gen[TransferError]
 }
 
 case class Done()
 object Done {
-  implicit val encoder: JsonEncoder[Done] = DeriveJsonEncoder.gen[Done]
-  implicit val decoder: JsonDecoder[Done] = DeriveJsonDecoder.gen[Done]
+  given JsonEncoder[Done] = DeriveJsonEncoder.gen[Done]
+  given JsonDecoder[Done] = DeriveJsonDecoder.gen[Done]
 }
 
 @activityInterface

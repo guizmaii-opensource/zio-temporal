@@ -92,15 +92,15 @@ class ZTemporalCodecSpec extends AnyWordSpec with Matchers {
 final case class Foo(x: Int, y: String)
 
 object Foo {
-  implicit val encoder: JsonEncoder[Foo] = DeriveJsonEncoder.gen[Foo]
-  implicit val decoder: JsonDecoder[Foo] = DeriveJsonDecoder.gen[Foo]
+  given JsonEncoder[Foo] = DeriveJsonEncoder.gen[Foo]
+  given JsonDecoder[Foo] = DeriveJsonDecoder.gen[Foo]
 }
 
 final case class Bar(z: Boolean)
 
 object Bar {
-  implicit val encoder: JsonEncoder[Bar] = DeriveJsonEncoder.gen[Bar]
-  implicit val decoder: JsonDecoder[Bar] = DeriveJsonDecoder.gen[Bar]
+  given JsonEncoder[Bar] = DeriveJsonEncoder.gen[Bar]
+  given JsonDecoder[Bar] = DeriveJsonDecoder.gen[Bar]
 }
 
 sealed trait Shape
@@ -108,6 +108,6 @@ object Shape {
   final case class Rectangle(w: Double, h: Double) extends Shape
   final case class Circle(r: Double)               extends Shape
 
-  implicit val encoder: JsonEncoder[Shape] = DeriveJsonEncoder.gen[Shape]
-  implicit val decoder: JsonDecoder[Shape] = DeriveJsonDecoder.gen[Shape]
+  given JsonEncoder[Shape] = DeriveJsonEncoder.gen[Shape]
+  given JsonDecoder[Shape] = DeriveJsonDecoder.gen[Shape]
 }

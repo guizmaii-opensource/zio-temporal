@@ -66,8 +66,34 @@ final class CodecRegistry {
     byType.keySet().asScala.map(_.getTypeName)
   }
 
+  /** For diagnostics: runtime classes indexed in the encode path. */
+  def registeredClassNames: Iterable[String] = {
+    import scala.jdk.CollectionConverters._
+    byClass.keySet().asScala.map(_.getName)
+  }
+
   /** Number of registered types. */
   def size: Int = byType.size()
+
+  /** Walk the workflow or activity interface `I` at compile time and register a codec for every parameter and return
+    * type of every method annotated with `@workflowMethod` / `@signalMethod` / `@queryMethod` / `@activityMethod`.
+    *
+    * Compilation fails with a clear message if any of those types lacks a `ZTemporalCodec` in scope, so a worker or
+    * client that is missing runtime registrations cannot be assembled.
+    *
+    * Returns `this` so calls can be chained:
+    *
+    * {{{
+    *   val registry = new CodecRegistry()
+    *     .addInterface[PaymentWorkflow]
+    *     .addInterface[PaymentActivity]
+    * }}}
+    *
+    * Inherited `@workflowMethod`s are included, so `SodaWorkflow extends ParameterizedWorkflow[Soda]` correctly
+    * registers codecs for the parent's abstract method.
+    */
+  inline def addInterface[I]: CodecRegistry =
+    ${ zio.temporal.internal.InterfaceCodecsMacros.addInterfaceImpl[I]('this) }
 }
 
 object CodecRegistry {

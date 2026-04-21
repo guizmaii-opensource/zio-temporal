@@ -10,8 +10,8 @@ import zio.temporal.failure._
 object SafeMath {
   case class MathError(error: String)
   object MathError {
-    implicit val encoder: JsonEncoder[MathError] = DeriveJsonEncoder.gen[MathError]
-    implicit val decoder: JsonDecoder[MathError] = DeriveJsonDecoder.gen[MathError]
+    given JsonEncoder[MathError] = DeriveJsonEncoder.gen[MathError]
+    given JsonDecoder[MathError] = DeriveJsonDecoder.gen[MathError]
   }
 
   def divide(x: Int, y: Int): IO[MathError, Int] =

@@ -4,7 +4,7 @@ import zio._
 import zio.logging.backend.SLF4J
 import zio.temporal._
 import zio.temporal.json.CodecRegistry
-import zio.temporal.protobuf.ProtobufDataConverter
+import zio.temporal.protobuf.{ProtobufDataConverter, scalapbMessageZTemporalCodec}
 import zio.temporal.worker._
 import zio.temporal.workflow._
 import scala.reflect.ClassTag
@@ -175,7 +175,15 @@ object ProtobufParameterizedWorkflowMain extends ZIOAppDefault {
         // options
         ZWorkflowServiceStubsOptions.make,
         ZWorkflowClientOptions.make @@
-          ZWorkflowClientOptions.withDataConverter(ProtobufDataConverter.make(new CodecRegistry)),
+          ZWorkflowClientOptions.withDataConverter(
+            ProtobufDataConverter.make(
+              new CodecRegistry()
+                .addInterface[SodaChildWorkflow]
+                .addInterface[JuiceChildWorkflow]
+                .addInterface[SodaWorkflow]
+                .addInterface[JuiceWorkflow]
+            )
+          ),
         ZWorkerFactoryOptions.make
       )
   }

@@ -12,15 +12,15 @@ import scala.concurrent.TimeoutException
 
 case class Foo(bar: String)
 object Foo {
-  implicit val encoder: JsonEncoder[Foo] = DeriveJsonEncoder.gen[Foo]
-  implicit val decoder: JsonDecoder[Foo] = DeriveJsonDecoder.gen[Foo]
+  given JsonEncoder[Foo] = DeriveJsonEncoder.gen[Foo]
+  given JsonDecoder[Foo] = DeriveJsonDecoder.gen[Foo]
 }
 
 case class Triple[A, B, C](first: A, second: B, third: C)
 object Triple {
-  implicit def encoder[A: JsonEncoder, B: JsonEncoder, C: JsonEncoder]: JsonEncoder[Triple[A, B, C]] =
+  given [A: JsonEncoder, B: JsonEncoder, C: JsonEncoder]: JsonEncoder[Triple[A, B, C]] =
     DeriveJsonEncoder.gen[Triple[A, B, C]]
-  implicit def decoder[A: JsonDecoder, B: JsonDecoder, C: JsonDecoder]: JsonDecoder[Triple[A, B, C]] =
+  given [A: JsonDecoder, B: JsonDecoder, C: JsonDecoder]: JsonDecoder[Triple[A, B, C]] =
     DeriveJsonDecoder.gen[Triple[A, B, C]]
 }
 

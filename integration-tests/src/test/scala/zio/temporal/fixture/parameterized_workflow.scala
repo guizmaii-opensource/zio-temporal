@@ -7,8 +7,8 @@ import scala.reflect.ClassTag
 
 case class ParameterizedWorkflowOutput(message: String)
 object ParameterizedWorkflowOutput {
-  implicit val encoder: JsonEncoder[ParameterizedWorkflowOutput] = DeriveJsonEncoder.gen[ParameterizedWorkflowOutput]
-  implicit val decoder: JsonDecoder[ParameterizedWorkflowOutput] = DeriveJsonDecoder.gen[ParameterizedWorkflowOutput]
+  given JsonEncoder[ParameterizedWorkflowOutput] = DeriveJsonEncoder.gen[ParameterizedWorkflowOutput]
+  given JsonDecoder[ParameterizedWorkflowOutput] = DeriveJsonDecoder.gen[ParameterizedWorkflowOutput]
 }
 
 sealed trait ParameterizedChildWorkflowInput
@@ -17,16 +17,14 @@ object ParameterizedChildWorkflowInput {
   case class Soda(kind: String)               extends ParameterizedChildWorkflowInput
   case class Juice(kind: String, volume: Int) extends ParameterizedChildWorkflowInput
 
-  implicit val encoder: JsonEncoder[ParameterizedChildWorkflowInput] =
-    DeriveJsonEncoder.gen[ParameterizedChildWorkflowInput]
-  implicit val decoder: JsonDecoder[ParameterizedChildWorkflowInput] =
-    DeriveJsonDecoder.gen[ParameterizedChildWorkflowInput]
+  given JsonEncoder[ParameterizedChildWorkflowInput] = DeriveJsonEncoder.gen[ParameterizedChildWorkflowInput]
+  given JsonDecoder[ParameterizedChildWorkflowInput] = DeriveJsonDecoder.gen[ParameterizedChildWorkflowInput]
 
-  implicit val sodaEnc: JsonEncoder[Soda] = DeriveJsonEncoder.gen[Soda]
-  implicit val sodaDec: JsonDecoder[Soda] = DeriveJsonDecoder.gen[Soda]
+  given JsonEncoder[Soda] = DeriveJsonEncoder.gen[Soda]
+  given JsonDecoder[Soda] = DeriveJsonDecoder.gen[Soda]
 
-  implicit val juiceEnc: JsonEncoder[Juice] = DeriveJsonEncoder.gen[Juice]
-  implicit val juiceDec: JsonDecoder[Juice] = DeriveJsonDecoder.gen[Juice]
+  given JsonEncoder[Juice] = DeriveJsonEncoder.gen[Juice]
+  given JsonDecoder[Juice] = DeriveJsonDecoder.gen[Juice]
 }
 
 // NOTE: temporal won't deserialize correctly without the lower-bound type
@@ -41,14 +39,14 @@ object ParameterizedWorkflowInput {
   case class Soda(kind: String)  extends ParameterizedWorkflowInput
   case class Juice(kind: String) extends ParameterizedWorkflowInput
 
-  implicit val encoder: JsonEncoder[ParameterizedWorkflowInput] = DeriveJsonEncoder.gen[ParameterizedWorkflowInput]
-  implicit val decoder: JsonDecoder[ParameterizedWorkflowInput] = DeriveJsonDecoder.gen[ParameterizedWorkflowInput]
+  given JsonEncoder[ParameterizedWorkflowInput] = DeriveJsonEncoder.gen[ParameterizedWorkflowInput]
+  given JsonDecoder[ParameterizedWorkflowInput] = DeriveJsonDecoder.gen[ParameterizedWorkflowInput]
 
-  implicit val sodaEnc: JsonEncoder[Soda] = DeriveJsonEncoder.gen[Soda]
-  implicit val sodaDec: JsonDecoder[Soda] = DeriveJsonDecoder.gen[Soda]
+  given JsonEncoder[Soda] = DeriveJsonEncoder.gen[Soda]
+  given JsonDecoder[Soda] = DeriveJsonDecoder.gen[Soda]
 
-  implicit val juiceEnc: JsonEncoder[Juice] = DeriveJsonEncoder.gen[Juice]
-  implicit val juiceDec: JsonDecoder[Juice] = DeriveJsonDecoder.gen[Juice]
+  given JsonEncoder[Juice] = DeriveJsonEncoder.gen[Juice]
+  given JsonDecoder[Juice] = DeriveJsonDecoder.gen[Juice]
 }
 
 // NOTE: temporal won't deserialize correctly without the lower-bound type

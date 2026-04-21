@@ -16,8 +16,8 @@ case class Subscription(
   amount:    BigDecimal)
 
 object Subscription {
-  implicit val encoder: JsonEncoder[Subscription] = DeriveJsonEncoder.gen[Subscription]
-  implicit val decoder: JsonDecoder[Subscription] = DeriveJsonDecoder.gen[Subscription]
+  given JsonEncoder[Subscription] = DeriveJsonEncoder.gen[Subscription]
+  given JsonDecoder[Subscription] = DeriveJsonDecoder.gen[Subscription]
 }
 
 @activityInterface
