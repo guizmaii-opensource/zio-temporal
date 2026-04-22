@@ -7,7 +7,7 @@ import io.temporal.client.WorkflowClientOptions
 import io.temporal.common.context.ContextPropagator
 import io.temporal.common.converter._
 import io.temporal.common.interceptors.WorkflowClientInterceptor
-import zio.temporal.json.JacksonDataConverter
+import zio.temporal.json.{CodecRegistry, ZioJsonDataConverter}
 import scala.jdk.CollectionConverters._
 
 /** Represents Temporal workflow client options
@@ -18,6 +18,16 @@ import scala.jdk.CollectionConverters._
 final case class ZWorkflowClientOptions private[zio] (
   namespace:     Option[String],
   dataConverter: DataConverter,
+  /** The `CodecRegistry` that the data converter is backed by, when the default zio-json data converter is in use.
+    *
+    * `Some(registry)` — the default path: `ZWorkflowClient.make` verifies this registry is non-empty and fails loudly
+    * otherwise, catching the "forgot `.withCodecRegistry(...)` and `.addInterface[…]`" mistake at client-construction
+    * time instead of at the first `execute()`.
+    *
+    * `None` — the user supplied a custom `DataConverter` via [[withDataConverter]]; we stop introspecting and trust
+    * them.
+    */
+  codecRegistry: Option[CodecRegistry],
   interceptors:  List[WorkflowClientInterceptor],
   identity:      Option[String],
   @deprecated("use worker's buildId instead", since = "0.3.0")
@@ -32,9 +42,13 @@ final case class ZWorkflowClientOptions private[zio] (
     copy(namespace = Some(value))
 
   /** Overrides a data converter implementation used serialize workflow and activity arguments and results.
+    *
+    * Clears [[codecRegistry]] — when the user supplies a custom converter, the fail-fast registry check at
+    * `ZWorkflowClient.make` is disabled. Use [[withCodecRegistry]] or [[withCodecs]] if you want the check to stay in
+    * effect.
     */
   def withDataConverter(value: DataConverter): ZWorkflowClientOptions =
-    copy(dataConverter = value)
+    copy(dataConverter = value, codecRegistry = None)
 
   /** Interceptor used to intercept workflow client calls.
     */
@@ -124,6 +138,30 @@ object ZWorkflowClientOptions extends ConfigurationCompanion[ZWorkflowClientOpti
   def withDataConverter(value: => DataConverter): Configure =
     configure(_.withDataConverter(value))
 
+  /** Convenience: configure the client to use a zio-json [[DataConverter]] backed by a [[CodecRegistry]] containing the
+    * supplied codecs. Equivalent to:
+    *
+    * {{{
+    *   ZWorkflowClientOptions.withDataConverter(
+    *     ZioJsonDataConverter.make(CodecRegistry.of(codecs: _*))
+    *   )
+    * }}}
+    */
+  def withCodecs(codecs: zio.temporal.json.ZTemporalCodec[_]*): Configure = {
+    val registry = zio.temporal.json.CodecRegistry.of(codecs: _*)
+    configure(
+      _.copy(dataConverter = zio.temporal.json.ZioJsonDataConverter.make(registry), codecRegistry = Some(registry))
+    )
+  }
+
+  /** Convenience: configure the client to use the supplied [[CodecRegistry]] directly. Useful when the same registry is
+    * shared between a client and a worker.
+    */
+  def withCodecRegistry(registry: zio.temporal.json.CodecRegistry): Configure =
+    configure(
+      _.copy(dataConverter = zio.temporal.json.ZioJsonDataConverter.make(registry), codecRegistry = Some(registry))
+    )
+
   /** @see
     *   [[ZWorkflowClientOptions.withInterceptors]]
     */
@@ -178,15 +216,18 @@ object ZWorkflowClientOptions extends ConfigurationCompanion[ZWorkflowClientOpti
     makeImpl(List(name) ++ names)
 
   private def makeImpl(additionalPath: List[String]): Layer[Config.Error, ZWorkflowClientOptions] = {
-    val config = additionalPath match {
-      case Nil          => workflowClientConfig.nested("zio", "temporal", "zworkflow_client")
-      case head :: tail => workflowClientConfig.nested(head, tail: _*)
-    }
+    val config =
+      additionalPath match {
+        case Nil          => workflowClientConfig.nested("zio", "temporal", "zworkflow_client")
+        case head :: tail => workflowClientConfig.nested(head, tail: _*)
+      }
     ZLayer.fromZIO {
       ZIO.config(config).map { case (namespace, identityCfg, binaryChecksum) =>
+        val registry = new CodecRegistry
         new ZWorkflowClientOptions(
           namespace = namespace,
-          dataConverter = JacksonDataConverter.make(),
+          dataConverter = ZioJsonDataConverter.make(registry),
+          codecRegistry = Some(registry),
           interceptors = Nil,
           identity = identityCfg,
           binaryChecksum = binaryChecksum,

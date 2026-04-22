@@ -6,8 +6,8 @@ import io.temporal.workflow.{CancellationScope, Workflow}
 import org.slf4j.Logger
 import zio.temporal.activity._
 import zio.temporal.internal.{ClassTagUtils, TemporalWorkflowFacade, ZWorkflowVersionSpecific}
+import zio.temporal.json.ZTemporalCodec
 import zio.temporal.{
-  JavaTypeTag,
   TypeIsSpecified,
   ZCurrentTimeMillis,
   ZRetryOptions,
@@ -228,8 +228,8 @@ object ZWorkflow extends ZWorkflowVersionSpecific {
     * @see
     *   [[mutableSideEffect]]
     */
-  def sideEffect[R](f: () => R)(implicit javaTypeTag: JavaTypeTag[R]): R =
-    Workflow.sideEffect[R](javaTypeTag.klass, javaTypeTag.genericType, () => f())
+  def sideEffect[R](f: () => R)(implicit codec: ZTemporalCodec[R]): R =
+    Workflow.sideEffect[R](codec.klass, codec.genericType, () => f())
 
   /** `mutableSideEffect` is similar to [[sideEffect]] in allowing calls of non-deterministic functions from workflow
     * code.
@@ -262,12 +262,12 @@ object ZWorkflow extends ZWorkflowVersionSpecific {
     *   [[sideEffect]]
     */
   def mutableSideEffect[R](
-    id:                   String,
-    updated:              (R, R) => Boolean,
-    f:                    () => R
-  )(implicit javaTypeTag: JavaTypeTag[R]
+    id:             String,
+    updated:        (R, R) => Boolean,
+    f:              () => R
+  )(implicit codec: ZTemporalCodec[R]
   ): R =
-    Workflow.mutableSideEffect(id, javaTypeTag.klass, javaTypeTag.genericType, (a, b) => updated(a, b), () => f())
+    Workflow.mutableSideEffect(id, codec.klass, codec.genericType, (a, b) => updated(a, b), () => f())
 
   /** Returns current timestamp
     *
@@ -605,8 +605,8 @@ object ZWorkflow extends ZWorkflowVersionSpecific {
     * @see
     *   io.temporal.client.WorkflowOptions.Builder#setCronSchedule(String)
     */
-  def getLastCompletionResult[R: TypeIsSpecified: JavaTypeTag]: R =
-    Workflow.getLastCompletionResult(JavaTypeTag[R].klass, JavaTypeTag[R].genericType)
+  def getLastCompletionResult[R: TypeIsSpecified: ZTemporalCodec]: R =
+    Workflow.getLastCompletionResult(ZTemporalCodec[R].klass, ZTemporalCodec[R].genericType)
 
   /** Extract the latest failure from a previous run of this workflow. If any previous run of this workflow has failed,
     * this function returns that failure. If no previous runs have failed, an empty optional is returned. The run you
@@ -628,8 +628,8 @@ object ZWorkflow extends ZWorkflowVersionSpecific {
     * @return
     *   Some of deserialized Memo or None if the key is not present in the memo
     */
-  def getMemo[T](key: String)(implicit javaTypeTag: JavaTypeTag[T]): Option[T] =
-    Option(Workflow.getMemo(key, javaTypeTag.klass, javaTypeTag.genericType))
+  def getMemo[T](key: String)(implicit codec: ZTemporalCodec[T]): Option[T] =
+    Option(Workflow.getMemo(key, codec.klass, codec.genericType))
 
   /** Invokes function retrying in case of failures according to retry options. Synchronous variant.
     *

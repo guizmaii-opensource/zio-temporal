@@ -4,6 +4,7 @@ import zio._
 import zio.logging.backend.SLF4J
 import zio.temporal._
 import zio.temporal.activity.ZActivityRunOptions
+import zio.temporal.json.CodecRegistry
 import zio.temporal.worker._
 import zio.temporal.workflow._
 
@@ -82,7 +83,12 @@ object Main extends ZIOAppDefault {
     program
       .provideSome[Scope](
         ZWorkflowServiceStubsOptions.make,
-        ZWorkflowClientOptions.make,
+        ZWorkflowClientOptions.make @@
+          ZWorkflowClientOptions.withCodecRegistry(
+            new CodecRegistry()
+              .addInterface[FoodOrderWorkflow]
+              .addInterface[FoodDeliveryWorkflow]
+          ),
         ZWorkerFactoryOptions.make,
         ZWorkflowClient.make,
         ZWorkflowServiceStubs.make,

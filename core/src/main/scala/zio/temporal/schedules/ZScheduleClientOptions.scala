@@ -111,10 +111,11 @@ object ZScheduleClientOptions extends ConfigurationCompanion[ZScheduleClientOpti
     makeImpl(List(name) ++ names)
 
   private def makeImpl(additionalPath: List[String]): Layer[Config.Error, ZScheduleClientOptions] = {
-    val config = additionalPath match {
-      case Nil          => scheduleClientConfig.nested("zio", "temporal", "zschedule_client")
-      case head :: tail => scheduleClientConfig.nested(head, tail: _*)
-    }
+    val config =
+      additionalPath match {
+        case Nil          => scheduleClientConfig.nested("zio", "temporal", "zschedule_client")
+        case head :: tail => scheduleClientConfig.nested(head, tail: _*)
+      }
 
     ZLayer.fromZIO {
       ZIO.config(config).map { case (namespace, identityCfg) =>

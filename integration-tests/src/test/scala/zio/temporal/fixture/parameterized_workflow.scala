@@ -1,25 +1,16 @@
 package zio.temporal.fixture
 
-import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
+import zio.json.JsonCodec
 import zio.temporal._
 import zio.temporal.workflow._
 import scala.reflect.ClassTag
 
-case class ParameterizedWorkflowOutput(message: String)
+final case class ParameterizedWorkflowOutput(message: String) derives JsonCodec
 
-// NOTE: jackson (de)serialization won't work without additional annotations
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
-@JsonSubTypes(
-  Array(
-    new JsonSubTypes.Type(value = classOf[ParameterizedChildWorkflowInput.Soda], name = "Soda"),
-    new JsonSubTypes.Type(value = classOf[ParameterizedChildWorkflowInput.Juice], name = "Juice")
-  )
-)
-sealed trait ParameterizedChildWorkflowInput
+sealed trait ParameterizedChildWorkflowInput derives JsonCodec
 object ParameterizedChildWorkflowInput {
-
-  case class Soda(kind: String)               extends ParameterizedChildWorkflowInput
-  case class Juice(kind: String, volume: Int) extends ParameterizedChildWorkflowInput
+  final case class Soda(kind: String)               extends ParameterizedChildWorkflowInput derives JsonCodec
+  final case class Juice(kind: String, volume: Int) extends ParameterizedChildWorkflowInput derives JsonCodec
 }
 
 // NOTE: temporal won't deserialize correctly without the lower-bound type
@@ -28,19 +19,10 @@ trait ParameterizedChildWorkflow[Input <: ParameterizedChildWorkflowInput] {
   def childTask(input: Input): ParameterizedWorkflowOutput
 }
 
-// NOTE: jackson (de)serialization won't work without additional annotations
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
-@JsonSubTypes(
-  Array(
-    new JsonSubTypes.Type(value = classOf[ParameterizedWorkflowInput.Soda], name = "Soda"),
-    new JsonSubTypes.Type(value = classOf[ParameterizedWorkflowInput.Juice], name = "Juice")
-  )
-)
-sealed trait ParameterizedWorkflowInput
+sealed trait ParameterizedWorkflowInput derives JsonCodec
 object ParameterizedWorkflowInput {
-
-  case class Soda(kind: String)  extends ParameterizedWorkflowInput
-  case class Juice(kind: String) extends ParameterizedWorkflowInput
+  final case class Soda(kind: String)  extends ParameterizedWorkflowInput derives JsonCodec
+  final case class Juice(kind: String) extends ParameterizedWorkflowInput derives JsonCodec
 }
 
 // NOTE: temporal won't deserialize correctly without the lower-bound type

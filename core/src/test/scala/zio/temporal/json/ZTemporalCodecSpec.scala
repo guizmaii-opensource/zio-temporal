@@ -1,0 +1,278 @@
+package zio.temporal.json
+
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
+import zio.json.{
+  DeriveJsonDecoder,
+  DeriveJsonEncoder,
+  JsonCodec,
+  JsonDecoder,
+  JsonEncoder,
+  jsonDiscriminator,
+  jsonField,
+  jsonHint
+}
+
+import java.time.Instant
+import java.util.UUID
+
+class ZTemporalCodecSpec extends AnyWordSpec with Matchers {
+
+  "ZTemporalCodec" should {
+
+    "auto-derive a codec for primitives via kind0" in {
+      val c = ZTemporalCodec[Int]
+      c.klass shouldEqual classOf[Int]
+      c.genericType shouldEqual classOf[Int]
+      c.encoder.encodeJson(42, None).toString shouldEqual "42"
+      c.decoder.decodeJson("42") shouldEqual Right(42)
+    }
+
+    "auto-derive a codec for String" in {
+      val c = ZTemporalCodec[String]
+      c.encoder.encodeJson("hi", None).toString shouldEqual "\"hi\""
+      c.decoder.decodeJson("\"hi\"") shouldEqual Right("hi")
+    }
+
+    "auto-derive for UUID via kind0" in {
+      val c  = ZTemporalCodec[UUID]
+      val id = UUID.fromString("00000000-0000-0000-0000-000000000001")
+      c.encoder.encodeJson(id, None).toString shouldEqual "\"00000000-0000-0000-0000-000000000001\""
+      c.decoder.decodeJson("\"00000000-0000-0000-0000-000000000001\"") shouldEqual Right(id)
+    }
+
+    "auto-derive for Instant via kind0" in {
+      val c = ZTemporalCodec[Instant]
+      val t = Instant.parse("2026-04-21T12:00:00Z")
+      c.decoder.decodeJson(c.encoder.encodeJson(t, None)) shouldEqual Right(t)
+    }
+
+    "encode Unit as the literal `{}` (no AST allocation on the hot path)" in {
+      val c = ZTemporalCodec[Unit]
+      c.encoder.encodeJson((), None).toString shouldEqual "{}"
+    }
+
+    "encode Unit as Json.Obj.empty via toJsonAST" in {
+      val c      = ZTemporalCodec[Unit]
+      val astOpt = c.encoder.toJsonAST(())
+      astOpt shouldEqual Right(zio.json.ast.Json.Obj.empty)
+      // And the constant-singleton contract — toJsonAST returns the shared empty instance.
+      astOpt.toOption.get should be theSameInstanceAs zio.json.ast.Json.Obj.empty
+    }
+
+    "decode {} to ()" in {
+      ZTemporalCodec[Unit].decoder.decodeJson("{}") shouldEqual Right(())
+    }
+
+    "decode an arbitrary object payload to ()" in {
+      ZTemporalCodec[Unit].decoder.decodeJson("""{"foo":42,"bar":"hi"}""") shouldEqual Right(())
+    }
+
+    "decode JSON primitives (number / string / boolean / null) to ()" in {
+      val c = ZTemporalCodec[Unit]
+      c.decoder.decodeJson("42") shouldEqual Right(())
+      c.decoder.decodeJson("\"hello\"") shouldEqual Right(())
+      c.decoder.decodeJson("true") shouldEqual Right(())
+      c.decoder.decodeJson("null") shouldEqual Right(())
+    }
+
+    "decode an array payload to ()" in {
+      ZTemporalCodec[Unit].decoder.decodeJson("[1,2,3]") shouldEqual Right(())
+    }
+
+    "decode from an already-parsed Json AST to () without allocating" in {
+      val c   = ZTemporalCodec[Unit]
+      val ast = zio.json.ast.Json.Num(BigDecimal(42))
+      c.decoder.fromJsonAST(ast) shouldEqual Right(())
+    }
+
+    "round-trip: decode(encode(())) == ()" in {
+      val c       = ZTemporalCodec[Unit]
+      val encoded = c.encoder.encodeJson((), None)
+      c.decoder.decodeJson(encoded) shouldEqual Right(())
+    }
+
+    "ZTemporalCodec[Unit].klass is classOf[Unit]" in {
+      ZTemporalCodec[Unit].klass shouldEqual classOf[Unit]
+    }
+
+    "auto-derives a codec for a case class from separate encoder+decoder" in {
+      val c = ZTemporalCodec[Foo]
+      val v = Foo(x = 7, y = "seven")
+      c.decoder.decodeJson(c.encoder.encodeJson(v, None)) shouldEqual Right(v)
+    }
+
+    "kind1 produces a ParameterizedType for List[A]" in {
+      val c = ZTemporalCodec[List[Foo]]
+      c.klass shouldEqual classOf[List[_]]
+      c.genericType match {
+        case pt: java.lang.reflect.ParameterizedType =>
+          pt.getRawType shouldEqual classOf[List[_]]
+          pt.getActualTypeArguments.toList shouldEqual List(classOf[Foo])
+        case other => fail(s"Expected ParameterizedType, got $other")
+      }
+    }
+
+    "ParameterizedType instances compare equal structurally" in {
+      val a = ZTemporalCodec[List[Foo]].genericType
+      val b = ZTemporalCodec[List[Foo]].genericType
+      a shouldEqual b
+      a.hashCode shouldEqual b.hashCode
+      // and different for different arg
+      a should not equal ZTemporalCodec[List[Bar]].genericType
+    }
+
+    "ParameterizedType.equals is reflexive and symmetric with different instances of the same type" in {
+      val a = ZTemporalCodec[Map[String, Foo]].genericType
+      val b = ZTemporalCodec[Map[String, Foo]].genericType
+      (a eq b) shouldBe false // not same reference
+      a shouldEqual b
+      b shouldEqual a
+    }
+
+    "ParameterizedType.hashCode is consistent with equals" in {
+      val a = ZTemporalCodec[List[Foo]].genericType
+      val b = ZTemporalCodec[List[Foo]].genericType
+      a.hashCode shouldEqual b.hashCode
+    }
+
+    "ParameterizedType.hashCode differs for different type arguments" in {
+      val listFoo = ZTemporalCodec[List[Foo]].genericType
+      val listBar = ZTemporalCodec[List[Bar]].genericType
+      // not strictly required by the contract, but a structural hash should almost always differ here
+      listFoo.hashCode should not equal listBar.hashCode
+    }
+
+    "ParameterizedType.toString renders in Scala bracket notation" in {
+      val listFoo = ZTemporalCodec[List[Foo]].genericType.toString
+      listFoo should include("scala.collection.immutable.List[")
+      listFoo should endWith("]")
+      listFoo should not include "<"
+      listFoo should not include ">"
+    }
+
+    "roundtrips an Option[Foo]" in {
+      val c = ZTemporalCodec[Option[Foo]]
+      c.decoder.decodeJson(c.encoder.encodeJson(Some(Foo(1, "a")), None)) shouldEqual Right(Some(Foo(1, "a")))
+      c.decoder.decodeJson(c.encoder.encodeJson(None: Option[Foo], None)) shouldEqual Right(None)
+    }
+
+    "roundtrips a sealed trait" in {
+      val c        = ZTemporalCodec[Shape]
+      val r: Shape = Shape.Rectangle(2.0, 3.0)
+      val k: Shape = Shape.Circle(5.0)
+      c.decoder.decodeJson(c.encoder.encodeJson(r, None)) shouldEqual Right(r)
+      c.decoder.decodeJson(c.encoder.encodeJson(k, None)) shouldEqual Right(k)
+    }
+
+    "`derives ZTemporalCodec` on a case class works end-to-end" in {
+      val c = ZTemporalCodec[DerivedType]
+      val v = DerivedType(1, "alice")
+      c.encoder.encodeJson(v, None).toString shouldEqual """{"id":1,"name":"alice"}"""
+      c.decoder.decodeJson(c.encoder.encodeJson(v, None)) shouldEqual Right(v)
+    }
+
+    "`derives ZTemporalCodec` on a sealed trait works end-to-end" in {
+      val c               = ZTemporalCodec[DerivedShape]
+      val a: DerivedShape = DerivedShape.A(42)
+      val b: DerivedShape = DerivedShape.B("hi")
+      c.decoder.decodeJson(c.encoder.encodeJson(a, None)) shouldEqual Right(a)
+      c.decoder.decodeJson(c.encoder.encodeJson(b, None)) shouldEqual Right(b)
+    }
+
+    "`derives ZTemporalCodec` on a Scala 3 enum with data cases works end-to-end" in {
+      val c              = ZTemporalCodec[DerivedEnum]
+      val a: DerivedEnum = DerivedEnum.A(42)
+      val b: DerivedEnum = DerivedEnum.B("hi")
+      c.decoder.decodeJson(c.encoder.encodeJson(a, None)) shouldEqual Right(a)
+      c.decoder.decodeJson(c.encoder.encodeJson(b, None)) shouldEqual Right(b)
+    }
+
+    "respects zio-json field-rename annotations (`@jsonField`) in a derived codec" in {
+      val c = ZTemporalCodec[AnnotatedUser]
+      val v = AnnotatedUser(id = 42, name = "alice")
+      // `@jsonField("user_id")` must rename the field on the wire.
+      c.encoder.encodeJson(v, None).toString shouldEqual """{"user_id":42,"name":"alice"}"""
+      c.decoder.decodeJson("""{"user_id":42,"name":"alice"}""") shouldEqual Right(v)
+    }
+
+    "respects zio-json subtype-rename annotations (`@jsonHint`) in a sealed-trait derived codec" in {
+      val c                       = ZTemporalCodec[AnnotatedEvent]
+      val created: AnnotatedEvent = AnnotatedEvent.Created(42)
+      // `@jsonHint("CREATED")` must rename the outer discriminator key.
+      c.encoder.encodeJson(created, None).toString shouldEqual """{"CREATED":{"id":42}}"""
+      c.decoder.decodeJson("""{"CREATED":{"id":42}}""") shouldEqual Right(created)
+    }
+
+    "respects zio-json `@jsonDiscriminator(\"type\")` to use an internal discriminator field" in {
+      val c                           = ZTemporalCodec[DiscriminatedEvent]
+      val created: DiscriminatedEvent = DiscriminatedEvent.Created(42)
+      val deleted: DiscriminatedEvent = DiscriminatedEvent.Deleted(7)
+      // With `@jsonDiscriminator("type")`, subtypes encode with a `"type"` field inside the object rather than
+      // as an outer `{"Subtype":{...}}` wrapper — matching the shape the old Jackson integration used.
+      c.encoder.encodeJson(created, None).toString shouldEqual """{"type":"Created","id":42}"""
+      c.encoder.encodeJson(deleted, None).toString shouldEqual """{"type":"Deleted","id":7}"""
+      c.decoder.decodeJson("""{"type":"Created","id":42}""") shouldEqual Right(created)
+      c.decoder.decodeJson("""{"type":"Deleted","id":7}""") shouldEqual Right(deleted)
+    }
+  }
+
+  "ZTemporalCodec construction safety" should {
+
+    "reject ZTemporalCodec.make[List[_]] because List has type parameters" in {
+      // Guards against the silent-corruption path where a `Kind0` keyed on a parameterized type's raw class
+      // (e.g. `classOf[List]`) would let the last-registered `List[X]` overwrite every other instantiation
+      // inside `CodecRegistry.byClass`. Construction must fail loud.
+      val ex = intercept[IllegalArgumentException] {
+        ZTemporalCodec.make[List[Int]](JsonEncoder.list[Int], JsonDecoder.list[Int])
+      }
+      ex.getMessage should include("cannot hold a parameterized type")
+      ex.getMessage should include("kindN")
+    }
+
+    "accept ZTemporalCodec.make[A] for a ground case class" in {
+      noException should be thrownBy ZTemporalCodec.make[Foo](JsonEncoder[Foo], JsonDecoder[Foo])
+    }
+  }
+}
+
+// Fixture types — prove `derives JsonCodec` is enough end-to-end.
+
+final case class Foo(x: Int, y: String) derives JsonCodec
+
+final case class Bar(z: Boolean) derives JsonCodec
+
+sealed trait Shape derives JsonCodec
+object Shape {
+  final case class Rectangle(w: Double, h: Double) extends Shape
+  final case class Circle(r: Double)               extends Shape
+}
+
+// Derives ZTemporalCodec directly — should work via the inline `derived` in the companion.
+final case class DerivedType(id: Int, name: String) derives ZTemporalCodec
+
+sealed trait DerivedShape derives ZTemporalCodec
+object DerivedShape {
+  final case class A(n: Int)    extends DerivedShape
+  final case class B(s: String) extends DerivedShape
+}
+
+enum DerivedEnum derives ZTemporalCodec {
+  case A(n: Int)
+  case B(s: String)
+}
+
+final case class AnnotatedUser(@jsonField("user_id") id: Int, name: String) derives ZTemporalCodec
+
+sealed trait AnnotatedEvent derives ZTemporalCodec
+object AnnotatedEvent {
+  @jsonHint("CREATED") final case class Created(id: Int) extends AnnotatedEvent
+  @jsonHint("DELETED") final case class Deleted(id: Int) extends AnnotatedEvent
+}
+
+@jsonDiscriminator("type")
+sealed trait DiscriminatedEvent derives ZTemporalCodec
+object DiscriminatedEvent {
+  final case class Created(id: Int) extends DiscriminatedEvent
+  final case class Deleted(id: Int) extends DiscriminatedEvent
+}

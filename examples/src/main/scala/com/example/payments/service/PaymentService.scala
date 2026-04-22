@@ -8,6 +8,7 @@ import zio.logging.LogAnnotation
 import zio.logging.logContext
 import zio.temporal._
 import zio.temporal.protobuf.syntax._
+import zio.temporal.protobuf.scalapbMessageZTemporalCodec
 import zio.temporal.workflow._
 
 case class PaymentError(details: String)
