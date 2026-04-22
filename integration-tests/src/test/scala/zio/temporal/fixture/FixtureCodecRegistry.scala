@@ -1,6 +1,7 @@
 package zio.temporal.fixture
 
-import zio.temporal.json.CodecRegistry
+import zio.temporal.json.{CodecRegistry, ZTemporalCodec}
+import zio.temporal.fixture.FibonacciHeartbeatActivityImpl.HeartbeatDetails
 
 /** Shared [[CodecRegistry]] that pre-registers every `@workflowInterface` / `@activityInterface` defined in the
   * `zio.temporal.fixture` package.
@@ -56,6 +57,11 @@ object FixtureCodecRegistry {
       .addInterface[ZioUntypedActivity]
       .addInterface[ZioWorkflow]
       .addInterface[ZioWorkflowUntyped]
+      // Heartbeat-detail types are implementation detail of activities — they flow through the DataConverter
+      // via `context.heartbeat(...)` / `context.getHeartbeatDetails[T]` but never appear on the activity's
+      // public method signatures, so `addInterface` doesn't walk them. Register the ones the fixture uses
+      // explicitly.
+      .register(ZTemporalCodec[HeartbeatDetails])
   // Parameterized-workflow upper bounds (`SodaWorkflow extends ParameterizedWorkflow[Soda]`) inherit a method
   // whose signature uses a type parameter `Input <: ParameterizedWorkflowInput`. The `addInterface` macro promotes
   // the resolved subtype (`Soda`) to its sealed parent (`ParameterizedWorkflowInput`) when collecting codecs, so

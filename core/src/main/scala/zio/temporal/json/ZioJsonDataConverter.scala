@@ -14,7 +14,12 @@ import io.temporal.common.converter._
   *      `WorkflowRetryerInternal$SerializableRetryOptions`) that leak into the chain via `Workflow.retry`'s
   *      `mutableSideEffect` and for which no user-provided codec exists. The upstream SDK relies on Jackson's
   *      reflective fallback here; we substitute a surgical reflective encoder.
-  *   1. [[ZioJsonPayloadConverter]] — everything else (encoding `json/zio`)
+  *   1. [[ZioJsonPayloadConverter]] encoding `json/zio` — user-owned payloads; claimed first on encode.
+  *   1. [[ZioJsonPayloadConverter]] encoding `json/plain` — decode-only compatibility with recorded workflow histories
+  *      that were originally written by the Jackson-based `DefaultDataConverter`. `json/plain` is just vanilla JSON, so
+  *      the same registry decodes it correctly. Position matters: on encode, `DefaultDataConverter` stops at the first
+  *      converter returning non-empty, so the `json/zio` instance wins and fresh payloads never get stamped
+  *      `json/plain`.
   */
 object ZioJsonDataConverter {
 
@@ -25,6 +30,7 @@ object ZioJsonDataConverter {
       new ByteArrayPayloadConverter(),
       new ProtobufJsonPayloadConverter(),
       new TemporalInternalsPayloadConverter(),
-      new ZioJsonPayloadConverter(registry)
+      new ZioJsonPayloadConverter(registry),
+      new ZioJsonPayloadConverter(registry, ZioJsonPayloadConverter.JsonPlainEncodingName)
     )
 }

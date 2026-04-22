@@ -55,13 +55,18 @@ final class CodecRegistry {
   def register[A](codec: ZTemporalCodec[A]): this.type = {
     if (codec.genericType == codec.klass) {
       byClass.put(codec.klass, (codec.encoder, codec.decoder))
-      // Also index the boxed counterpart for primitive classes — Java erases Scala `Int`/`Long`/... to
+      // Also index every boxed counterpart. Java erases Scala primitives (`Int`/`Long`/...) to
       // `int.class`/`long.class`/... at the `ClassTag` level, but any value that actually reaches the
-      // `DataConverter.toPayload(Object)` call site is boxed (`classOf[Integer]`, `classOf[Long]`, ...).
-      // Without this, `encoderForClass(classOf[Integer])` misses the `Int` codec entirely.
-      boxedOf(codec.klass) match {
-        case null  => ()
-        case boxed => byClass.put(boxed, (codec.encoder, codec.decoder))
+      // `DataConverter.toPayload(Object)` call site is boxed — and the Scala boxing differs from the
+      // Java one in two places worth knowing:
+      //   - `Unit` erases to `void.class`. Its Java counterpart is `java.lang.Void`, but no Scala `()`
+      //     value is ever a `java.lang.Void`; `()` is always `scala.runtime.BoxedUnit.UNIT`.
+      //   - all other primitives map to their `java.lang.*` boxed class as usual.
+      // Without these extra index entries, encoding a `()` or an `Int` / `Long` / ... value misses the
+      // codec entirely.
+      val iterator = boxedOf(codec.klass).iterator
+      while (iterator.hasNext) {
+        byClass.put(iterator.next(), (codec.encoder, codec.decoder))
       }
     } else {
       val entry = CodecRegistry.ParamEntry(codec.genericType, codec.encoder, codec.decoder)
@@ -87,18 +92,21 @@ final class CodecRegistry {
     this
   }
 
-  /** Returns the boxed wrapper class for a Scala/Java primitive class, or `null` if `cls` isn't primitive. */
-  private def boxedOf(cls: Class[_]): Class[_] | Null = {
-    if (cls eq java.lang.Integer.TYPE) classOf[java.lang.Integer]
-    else if (cls eq java.lang.Long.TYPE) classOf[java.lang.Long]
-    else if (cls eq java.lang.Boolean.TYPE) classOf[java.lang.Boolean]
-    else if (cls eq java.lang.Double.TYPE) classOf[java.lang.Double]
-    else if (cls eq java.lang.Float.TYPE) classOf[java.lang.Float]
-    else if (cls eq java.lang.Short.TYPE) classOf[java.lang.Short]
-    else if (cls eq java.lang.Byte.TYPE) classOf[java.lang.Byte]
-    else if (cls eq java.lang.Character.TYPE) classOf[java.lang.Character]
-    else if (cls eq java.lang.Void.TYPE) classOf[java.lang.Void]
-    else null
+  /** Returns every boxed runtime class that can stand in for a Scala/Java primitive class at `DataConverter.toPayload`
+    * time. For most primitives this is just the `java.lang.*` wrapper; for `Unit` it's `scala.runtime.BoxedUnit`
+    * (Scala's `()` boxes to `BoxedUnit.UNIT`, never `java.lang.Void`). Returns `Nil` for non-primitive classes.
+    */
+  private def boxedOf(cls: Class[_]): List[Class[_]] = {
+    if (cls eq java.lang.Integer.TYPE) List(classOf[java.lang.Integer])
+    else if (cls eq java.lang.Long.TYPE) List(classOf[java.lang.Long])
+    else if (cls eq java.lang.Boolean.TYPE) List(classOf[java.lang.Boolean])
+    else if (cls eq java.lang.Double.TYPE) List(classOf[java.lang.Double])
+    else if (cls eq java.lang.Float.TYPE) List(classOf[java.lang.Float])
+    else if (cls eq java.lang.Short.TYPE) List(classOf[java.lang.Short])
+    else if (cls eq java.lang.Byte.TYPE) List(classOf[java.lang.Byte])
+    else if (cls eq java.lang.Character.TYPE) List(classOf[java.lang.Character])
+    else if (cls eq java.lang.Void.TYPE) List(classOf[scala.runtime.BoxedUnit], classOf[java.lang.Void])
+    else Nil
   }
 
   /** Look up an encoder by the value's runtime class. Returns `null` for "not found" to avoid allocating an `Option` on

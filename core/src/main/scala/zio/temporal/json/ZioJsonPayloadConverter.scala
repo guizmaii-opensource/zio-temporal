@@ -15,15 +15,27 @@ import java.util.Optional
   * Encoding: looks up a `JsonEncoder` by the value's runtime class. Decoding: looks up a `JsonDecoder` by the requested
   * generic `Type` (not just raw class), so `List[Foo]` and `List[Bar]` dispatch distinctly.
   *
+  * The `encodingName` argument controls the Temporal payload-encoding metadata string this converter claims. Default is
+  * `"json/zio"`. A second instance in the chain with `"json/plain"` is used purely for *decode* — it lets recorded
+  * workflow histories that were originally written with Temporal's Jackson-based `DefaultDataConverter` (and therefore
+  * carry `encoding=json/plain`) replay through zio-json, since `json/plain` is just vanilla JSON and the registry's
+  * decoders handle it identically.
+  *
   * Throws [[DataConverterException]] with a specific message if a codec is missing — this should not happen for types
   * exercised via zio-temporal's typed stubs/workers (the compile-time gate ensures registration) but can occur for
   * untyped stubs or manual payload manipulation.
   */
-final class ZioJsonPayloadConverter(registry: CodecRegistry) extends PayloadConverter {
+final class ZioJsonPayloadConverter(registry: CodecRegistry, encodingName: String) extends PayloadConverter {
 
   import ZioJsonPayloadConverter._
 
-  override def getEncodingType: String = EncodingName
+  /** Convenience secondary constructor: default encoding `"json/zio"`. */
+  def this(registry: CodecRegistry) = this(registry, ZioJsonPayloadConverter.EncodingName)
+
+  private val encodingMetadataValue: ByteString =
+    ByteString.copyFrom(encodingName, StandardCharsets.UTF_8)
+
+  override def getEncodingType: String = encodingName
 
   override def toData(value: Any): Optional[Payload] =
     value match {
@@ -41,7 +53,7 @@ final class ZioJsonPayloadConverter(registry: CodecRegistry) extends PayloadConv
         Optional.of(
           Payload
             .newBuilder()
-            .putMetadata(EncodingMetadataKey, EncodingPayload)
+            .putMetadata(EncodingMetadataKey, encodingMetadataValue)
             .setData(byteStringOutput.toByteString)
             .build()
         )
@@ -240,6 +252,10 @@ object ZioJsonPayloadConverter {
     */
   final val EncodingName: String = "json/zio"
 
+  /** The Temporal compatibility encoding name. Payloads recorded under the older Jackson-based `DefaultDataConverter`
+    * carry this encoding; we claim it on decode so those histories replay cleanly.
+    */
+  final val JsonPlainEncodingName: String = "json/plain"
+
   private val EncodingMetadataKey: String = "encoding"
-  private val EncodingPayload: ByteString = ByteString.copyFrom(EncodingName, StandardCharsets.UTF_8)
 }
