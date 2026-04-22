@@ -17,8 +17,9 @@ import scala.quoted.*
   * one call.
   *
   * The same machinery is used by the ''auto-registration'' path (`autoRegisterInterfaceImpl`,
-  * `autoRegisterActivityImplImpl`), which is invoked from `ZWorker.addWorkflow[I]`, `ZWorker.addActivityImplementation`,
-  * `ZWorkflowClient.newWorkflowStub[A]`, etc. to remove the need for users to call `.addInterface[...]` by hand.
+  * `autoRegisterActivityImplImpl`), which is invoked from `ZWorker.addWorkflow[I]`,
+  * `ZWorker.addActivityImplementation`, `ZWorkflowClient.newWorkflowStub[A]`, etc. to remove the need for users to call
+  * `.addInterface[...]` by hand.
   */
 object InterfaceCodecsMacros {
 
@@ -40,10 +41,10 @@ object InterfaceCodecsMacros {
     * (`codecRegistry = None`) is a silent no-op because the `foreach` body is empty.
     *
     * Accepts either a `@workflowInterface`-annotated type (common case) ''or'' a workflow ''implementation'' class
-    * whose supertypes include a `@workflowInterface`. Impl classes show up at
-    * `ZWorker.addWorkflow[Impl].fromClass` call sites — the user's `Impl` satisfies `ExtendsWorkflow` via ancestry
-    * but doesn't carry `@workflowMethod` annotations directly. We walk its base classes for
-    * `@workflowInterface`- or `@activityInterface`-annotated ancestors and register each interface's codecs.
+    * whose supertypes include a `@workflowInterface`. Impl classes show up at `ZWorker.addWorkflow[Impl].fromClass`
+    * call sites — the user's `Impl` satisfies `ExtendsWorkflow` via ancestry but doesn't carry `@workflowMethod`
+    * annotations directly. We walk its base classes for `@workflowInterface`- or `@activityInterface`-annotated
+    * ancestors and register each interface's codecs.
     */
   def autoRegisterInterfaceImpl[I: Type](
     registryOpt: Expr[Option[CodecRegistry]]
@@ -104,8 +105,8 @@ object InterfaceCodecsMacros {
     import q.reflect.*
     val helpers = new InterfaceCodecsHelpers[q.type]
 
-    val implRepr = TypeRepr.of[A]
-    val implSym  = implRepr.typeSymbol
+    val implRepr             = TypeRepr.of[A]
+    val implSym              = implRepr.typeSymbol
     val ActivityInterfaceSym = TypeRepr.of[activityInterface].typeSymbol
 
     // Find every @activityInterface-annotated supertype in A's base classes. If A is itself annotated
@@ -152,16 +153,16 @@ object InterfaceCodecsMacros {
 
     private val boundaryAnnotations = List(WorkflowMethodSym, SignalMethodSym, QueryMethodSym, ActivityMethodSym)
 
-    /** Walk the interface `I` (or the symbol identified by `interfaceSym`, which must be compatible with `I`),
-      * collect all boundary-method parameter and return types, summon a `ZTemporalCodec` for each, and return them
-      * as a list of (type, codec-expression) pairs. `context` is used in error messages to tell the user which call
-      * site triggered the failure.
+    /** Walk the interface `I` (or the symbol identified by `interfaceSym`, which must be compatible with `I`), collect
+      * all boundary-method parameter and return types, summon a `ZTemporalCodec` for each, and return them as a list of
+      * (type, codec-expression) pairs. `context` is used in error messages to tell the user which call site triggered
+      * the failure.
       *
       * When `strict = true` (the default, used by `addInterface[I]`), a missing codec aborts compilation. When
       * `strict = false` (used by the auto-registration call sites), types without a summonable codec are silently
       * skipped — auto-reg must not fail compilation for types the user knowingly left uncodec-able (e.g. Scala 3
-      * `Int | Null` erasure-test fixtures, newtype union tests). Those types erase to `Object` at runtime and the
-      * user accepts that the payload path is not meant to handle them.
+      * `Int | Null` erasure-test fixtures, newtype union tests). Those types erase to `Object` at runtime and the user
+      * accepts that the payload path is not meant to handle them.
       */
     def collectInterfaceCodecs[I: Type](
       interfaceSym: Symbol,

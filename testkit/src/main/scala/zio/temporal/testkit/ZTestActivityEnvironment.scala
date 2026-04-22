@@ -15,8 +15,8 @@ import zio.temporal.internal.ClassTagUtils
 import scala.reflect.ClassTag
 
 class ZTestActivityEnvironment[+R] private[zio] (
-  val toJava:                     TestActivityEnvironment,
-  runtime:                        zio.Runtime[R],
+  val toJava: TestActivityEnvironment,
+  runtime:    zio.Runtime[R],
   private[zio] val codecRegistry: Option[CodecRegistry]) {
 
   /** Secondary constructor retained for call sites that don't have a registry reference. */
