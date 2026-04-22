@@ -6,6 +6,7 @@ import zio.temporal.ZAwaitTerminationOptions
 import zio.temporal.activity.ZActivityRunOptions
 import zio.temporal.ZCurrentTimeMillis
 import zio.temporal.internal.TemporalWorkflowFacade
+import zio.temporal.json.CodecRegistry
 import zio.temporal.worker.ZWorker
 import zio.temporal.worker.ZWorkerOptions
 import zio.temporal.workflow._
@@ -21,10 +22,20 @@ import scala.reflect.ClassTag
   * is unit tested in milliseconds. Here is an example of a test that executes in a few milliseconds instead of over two
   * hours that are needed for the workflow to complete:
   *
+  * The `codecRegistry` field carries the same `CodecRegistry` instance supplied via
+  * `ZTestEnvironmentOptions.workflowClientOptions.codecRegistry`, so workers and stubs created through this env
+  * auto-register their codecs into it — matching the behaviour of the real `ZWorkflowClient` path.
+  *
   * @see
   *   [[TestWorkflowEnvironment]]
   */
-class ZTestWorkflowEnvironment[+R] private[zio] (val toJava: TestWorkflowEnvironment, runtime: zio.Runtime[R]) {
+class ZTestWorkflowEnvironment[+R] private[zio] (
+  val toJava:                     TestWorkflowEnvironment,
+  runtime:                        zio.Runtime[R],
+  private[zio] val codecRegistry: Option[CodecRegistry]) {
+
+  /** Secondary constructor retained for call sites that don't have a registry reference. */
+  private[zio] def this(toJava: TestWorkflowEnvironment, runtime: zio.Runtime[R]) = this(toJava, runtime, None)
 
   def namespace: String =
     toJava.getNamespace
@@ -36,11 +47,11 @@ class ZTestWorkflowEnvironment[+R] private[zio] (val toJava: TestWorkflowEnviron
     */
   def newWorker(taskQueue: String, options: ZWorkerOptions = ZWorkerOptions.default): UIO[ZWorker] =
     ZIO.succeedBlocking(
-      new ZWorker(toJava.newWorker(taskQueue, options.toJava))
+      new ZWorker(toJava.newWorker(taskQueue, options.toJava), codecRegistry)
     )
 
   /** Creates a WorkflowClient that is connected to the in-memory test Temporal service. */
-  lazy val workflowClient: ZWorkflowClient = new ZWorkflowClient(toJava.getWorkflowClient)
+  lazy val workflowClient: ZWorkflowClient = new ZWorkflowClient(toJava.getWorkflowClient, codecRegistry)
 
   /** Returns the in-memory test Temporal service that is owned by this. */
   lazy val workflowServiceStubs: ZWorkflowServiceStubs = new ZWorkflowServiceStubs(toJava.getWorkflowServiceStubs)
@@ -318,12 +329,14 @@ object ZTestWorkflowEnvironment {
   def make[R: Tag]: URLayer[R with ZTestEnvironmentOptions, ZTestWorkflowEnvironment[R]] =
     ZLayer.scoped[R with ZTestEnvironmentOptions] {
       ZIO.runtime[R with ZTestEnvironmentOptions].flatMap { runtime =>
-        ZIO.succeedBlocking(
+        ZIO.succeedBlocking {
+          val envOptions = runtime.environment.get[ZTestEnvironmentOptions]
           new ZTestWorkflowEnvironment[R](
-            TestWorkflowEnvironment.newInstance(runtime.environment.get[ZTestEnvironmentOptions].toJava),
-            runtime
+            TestWorkflowEnvironment.newInstance(envOptions.toJava),
+            runtime,
+            envOptions.workflowClientOptions.codecRegistry
           )
-        )
+        }
       }
     }
 

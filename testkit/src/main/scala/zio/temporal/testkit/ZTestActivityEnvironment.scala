@@ -10,13 +10,17 @@ import zio.temporal.activity.{
 }
 import zio._
 import zio.temporal.{TypeIsSpecified}
-import zio.temporal.json.ZTemporalCodec
+import zio.temporal.json.{CodecRegistry, ZTemporalCodec}
 import zio.temporal.internal.ClassTagUtils
 import scala.reflect.ClassTag
 
 class ZTestActivityEnvironment[+R] private[zio] (
-  val toJava: TestActivityEnvironment,
-  runtime: zio.Runtime[R]) {
+  val toJava:                     TestActivityEnvironment,
+  runtime:                        zio.Runtime[R],
+  private[zio] val codecRegistry: Option[CodecRegistry]) {
+
+  /** Secondary constructor retained for call sites that don't have a registry reference. */
+  private[zio] def this(toJava: TestActivityEnvironment, runtime: zio.Runtime[R]) = this(toJava, runtime, None)
 
   implicit lazy val activityRunOptions: ZActivityRunOptions[R] =
     new ZActivityRunOptions[R](runtime, None)
@@ -236,12 +240,14 @@ object ZTestActivityEnvironment {
     ZLayer.scoped[R with ZTestEnvironmentOptions] {
       for {
         runtime <- ZIO.runtime[R with ZTestEnvironmentOptions]
-        env     <- ZIO.succeedBlocking(
+        env     <- ZIO.succeedBlocking {
+                 val envOptions = runtime.environment.get[ZTestEnvironmentOptions]
                  new ZTestActivityEnvironment[R](
-                   TestActivityEnvironment.newInstance(runtime.environment.get[ZTestEnvironmentOptions].toJava),
-                   runtime
+                   TestActivityEnvironment.newInstance(envOptions.toJava),
+                   runtime,
+                   envOptions.workflowClientOptions.codecRegistry
                  )
-               )
+               }
         _ <- ZIO.addFinalizer(
                ZIO.attempt(env.toJava.close()).ignore
              )
