@@ -78,7 +78,7 @@ object FixtureCodecRegistry {
   // and the runtime class erases to `Object` anyway, so there's no meaningful registry key. The fixtures
   // exist so that `InvocationMacroUtils.warnPossibleSerializationIssues` has something to emit the
   // "will be erased to java.lang.Object" warning against.
-  //   - ConcreteUnionWorkflow, ProblematicUnionWorkflow
+  //   - ConcreteUnionWorkflow, ProblematicUnionWorkflow, PrimitiveUnionWorkflow
   //   - IntOrNullWorkflow, StringOrNullWorkflow
   //   - NewtypeWorkflow
 }
