@@ -27,7 +27,7 @@ class MutableSideEffectWorkflowImpl extends MutableSideEffectWorkflow {
     // Three iterations, each recording a refreshed Summary. Because `updated` always reports true (values differ),
     // every iteration writes a fresh marker into history. On replay, each marker must decode back via the
     // registered codec.
-    val first  = ZWorkflow.mutableSideEffect[MutableSummary](
+    val first = ZWorkflow.mutableSideEffect[MutableSummary](
       "summary",
       changed,
       () => MutableSummary(1, List(s"seed-$seed", "one"))
@@ -37,7 +37,7 @@ class MutableSideEffectWorkflowImpl extends MutableSideEffectWorkflow {
       changed,
       () => MutableSummary(first.attempts + 1, first.tail :+ "two")
     )
-    val third  = ZWorkflow.mutableSideEffect[MutableSummary](
+    val third = ZWorkflow.mutableSideEffect[MutableSummary](
       "summary",
       changed,
       () => MutableSummary(second.attempts + 1, second.tail :+ "three")

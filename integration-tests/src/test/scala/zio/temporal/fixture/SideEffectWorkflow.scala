@@ -7,8 +7,8 @@ import zio.temporal.workflow._
 import java.time.Instant
 import java.util.UUID
 
-/** Captured by `ZWorkflow.sideEffect`. The non-deterministic pieces (`id`, `at`) are recorded once into workflow history
-  * on the first run and replayed identically on every subsequent history replay.
+/** Captured by `ZWorkflow.sideEffect`. The non-deterministic pieces (`id`, `at`) are recorded once into workflow
+  * history on the first run and replayed identically on every subsequent history replay.
   */
 final case class SideEffectSnapshot(
   id:   UUID,

@@ -12,10 +12,11 @@ import java.util.UUID
 /** Regression tests pinning codec coverage on the three workflow-correctness seams flagged by the PR #203 review:
   *
   *   1. `ZWorkflow.sideEffect[StructuredType]` — round-trip a non-trivial case class through a `sideEffect` recording.
-  *   1. `ZWorkflow.mutableSideEffect[StructuredType]` — codec-carrying marker that the `TemporalInternalsPayloadConverter`
-  *      fix was introduced for. (The review originally asked for `getLastCompletionResult[R]`; that API is populated only
-  *      for cron workflows, not continue-as-new, so we cover the same `ZTemporalCodec[R]`-driven recording path through
-  *      `mutableSideEffect`, which is the seam the retry-options bug exposed.)
+  *   1. `ZWorkflow.mutableSideEffect[StructuredType]` — codec-carrying marker that the
+  *      `TemporalInternalsPayloadConverter` fix was introduced for. (The review originally asked for
+  *      `getLastCompletionResult[R]`; that API is populated only for cron workflows, not continue-as-new, so we cover
+  *      the same `ZTemporalCodec[R]`-driven recording path through `mutableSideEffect`, which is the seam the
+  *      retry-options bug exposed.)
   *   1. `ApplicationFailure.getDetailsAs[T]` — structured error-details round-trip from activity to workflow.
   *
   * Each test exercises the full DataConverter pipeline inside the in-process Temporal test server.
@@ -28,17 +29,17 @@ object CodecSeamSpec extends BaseTemporalSpec {
         val taskQueue = "codec-seam-side-effect"
 
         for {
-          uuid   <- ZIO.randomWith(_.nextUUID)
-          _      <- ZTestWorkflowEnvironment.newWorker(taskQueue) @@
-                      ZWorker.addWorkflow[SideEffectWorkflowImpl].fromClass
+          uuid <- ZIO.randomWith(_.nextUUID)
+          _    <- ZTestWorkflowEnvironment.newWorker(taskQueue) @@
+                 ZWorker.addWorkflow[SideEffectWorkflowImpl].fromClass
 
-          _      <- ZTestWorkflowEnvironment.setup()
+          _ <- ZTestWorkflowEnvironment.setup()
 
-          stub   <- ZTestWorkflowEnvironment.newWorkflowStub[SideEffectWorkflow](
-                      ZWorkflowOptions
-                        .withWorkflowId(s"side-effect/$uuid")
-                        .withTaskQueue(taskQueue)
-                    )
+          stub <- ZTestWorkflowEnvironment.newWorkflowStub[SideEffectWorkflow](
+                    ZWorkflowOptions
+                      .withWorkflowId(s"side-effect/$uuid")
+                      .withTaskQueue(taskQueue)
+                  )
           result <- ZWorkflowStub.execute(stub.capture(42))
         } yield assertTrue(
           // The non-deterministic `id` and `at` are recorded once by `sideEffect` and returned verbatim, so we
@@ -54,17 +55,17 @@ object CodecSeamSpec extends BaseTemporalSpec {
         val taskQueue = "codec-seam-mutable-side-effect"
 
         for {
-          uuid   <- ZIO.randomWith(_.nextUUID)
-          _      <- ZTestWorkflowEnvironment.newWorker(taskQueue) @@
-                      ZWorker.addWorkflow[MutableSideEffectWorkflowImpl].fromClass
+          uuid <- ZIO.randomWith(_.nextUUID)
+          _    <- ZTestWorkflowEnvironment.newWorker(taskQueue) @@
+                 ZWorker.addWorkflow[MutableSideEffectWorkflowImpl].fromClass
 
-          _      <- ZTestWorkflowEnvironment.setup()
+          _ <- ZTestWorkflowEnvironment.setup()
 
-          stub   <- ZTestWorkflowEnvironment.newWorkflowStub[MutableSideEffectWorkflow](
-                      ZWorkflowOptions
-                        .withWorkflowId(s"mutable-side-effect/$uuid")
-                        .withTaskQueue(taskQueue)
-                    )
+          stub <- ZTestWorkflowEnvironment.newWorkflowStub[MutableSideEffectWorkflow](
+                    ZWorkflowOptions
+                      .withWorkflowId(s"mutable-side-effect/$uuid")
+                      .withTaskQueue(taskQueue)
+                  )
           result <- ZWorkflowStub.execute(stub.run(7))
         } yield assertTrue(
           // Three iterations, each carrying structured state forward. The final `MutableSummary` value must
@@ -78,18 +79,18 @@ object CodecSeamSpec extends BaseTemporalSpec {
           val taskQueue = "codec-seam-failure-details"
 
           for {
-            uuid   <- ZIO.randomWith(_.nextUUID)
-            _      <- ZTestWorkflowEnvironment.newWorker(taskQueue) @@
-                        ZWorker.addWorkflow[FailureDetailsWorkflowImpl].fromClass @@
-                        ZWorker.addActivityImplementation(new FailureDetailsActivityImpl)
+            uuid <- ZIO.randomWith(_.nextUUID)
+            _    <- ZTestWorkflowEnvironment.newWorker(taskQueue) @@
+                   ZWorker.addWorkflow[FailureDetailsWorkflowImpl].fromClass @@
+                   ZWorker.addActivityImplementation(new FailureDetailsActivityImpl)
 
-            _      <- ZTestWorkflowEnvironment.setup()
+            _ <- ZTestWorkflowEnvironment.setup()
 
-            stub   <- ZTestWorkflowEnvironment.newWorkflowStub[FailureDetailsWorkflow](
-                        ZWorkflowOptions
-                          .withWorkflowId(s"failure-details/$uuid")
-                          .withTaskQueue(taskQueue)
-                      )
+            stub <- ZTestWorkflowEnvironment.newWorkflowStub[FailureDetailsWorkflow](
+                      ZWorkflowOptions
+                        .withWorkflowId(s"failure-details/$uuid")
+                        .withTaskQueue(taskQueue)
+                    )
             result <- ZWorkflowStub.execute(stub.captureFailure("alice", 99))
           } yield assertTrue(
             // The whole UserError — including the `tags` list — must survive encode-on-throw in the activity
