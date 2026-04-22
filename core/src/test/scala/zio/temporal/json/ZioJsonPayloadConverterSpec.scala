@@ -663,6 +663,85 @@ class ZioJsonPayloadConverterSpec extends AnyWordSpec with Matchers {
       payload.getData.toStringUtf8 shouldEqual "[1,2,3]"
     }
   }
+
+  "ZioJsonPayloadConverter — streaming decode" should {
+
+    // Regression coverage for the streaming decode path. `fromData` no longer calls `ByteString.toStringUtf8`
+    // before handing bytes to zio-json; it wraps the `ByteString`'s `InputStream` in `InputStreamReader(UTF_8)`
+    // and feeds that through `WithRetractReader` directly to `JsonDecoder#unsafeDecode`. These tests pin the
+    // two behaviours most likely to regress:
+    //   1. Non-trivial nested payloads round-trip (exercises the reader across many characters, not just a
+    //      single ground token where buffer-size bugs are invisible).
+    //   2. Multi-byte UTF-8 characters round-trip — if the UTF-8 decoding step is ever dropped (e.g. someone
+    //      accidentally replaces `InputStreamReader(UTF_8)` with a default-charset Reader, or an ASCII
+    //      interpretation), the code-point `à` / `🎉` (surrogate pair) / `ℝ` come out mangled.
+    //   3. Malformed JSON still raises `DataConverterException` with a descriptive message body that mentions
+    //      the target type name.
+
+    "round-trip a non-trivial nested payload through the streaming decode path" in {
+      val registry = new CodecRegistry()
+        .register(ZTemporalCodec[User])
+        .register(ZTemporalCodec[List[User]])
+        .register(ZTemporalCodec[List[List[User]]])
+      val converter = new ZioJsonPayloadConverter(registry)
+
+      val nested = List(
+        List(User(1, "alice"), User(2, "bob")),
+        List(User(3, "carol"), User(4, "dave"), User(5, "eve"))
+      )
+      val payload = converter.toData(nested).orElseThrow(() => new AssertionError("expected non-empty"))
+
+      val decoded = converter.fromData(
+        payload,
+        classOf[List[List[User]]].asInstanceOf[Class[List[List[User]]]],
+        ZTemporalCodec[List[List[User]]].genericType
+      )
+      decoded shouldEqual nested
+    }
+
+    "round-trip multi-byte UTF-8 payloads (catches missing UTF-8 decode step)" in {
+      // `à` is a 2-byte sequence (0xC3 0xA0), `🎉` is 4 bytes (surrogate pair in UTF-16 → Java char pair),
+      // `ℝ` is 3 bytes (0xE2 0x84 0x9D). Any implementation that bypasses `InputStreamReader(UTF_8)` on
+      // either side — reading bytes as Latin-1 or interpreting a multi-byte sequence as individual chars —
+      // produces a mangled String and this assertion fails.
+      val registry  = new CodecRegistry().register(ZTemporalCodec[User])
+      val converter = new ZioJsonPayloadConverter(registry)
+
+      val tricky  = User(1, "à🎉ℝ")
+      val payload = converter.toData(tricky).orElseThrow(() => new AssertionError("expected non-empty"))
+      val decoded = converter.fromData(payload, classOf[User], classOf[User])
+      decoded shouldEqual tricky
+    }
+
+    "surface a descriptive DataConverterException for malformed JSON via the streaming path" in {
+      val registry  = new CodecRegistry().register(ZTemporalCodec[User])
+      val converter = new ZioJsonPayloadConverter(registry)
+      val payload   = Payload
+        .newBuilder()
+        .putMetadata("encoding", ByteString.copyFromUtf8("json/zio"))
+        .setData(ByteString.copyFrom("""{"id":"not-a-number","name":"alice"}""", StandardCharsets.UTF_8))
+        .build()
+
+      val thrown = the[DataConverterException] thrownBy converter.fromData(payload, classOf[User], classOf[User])
+      thrown.getMessage should include(classOf[User].getName)
+      // Body should mention the failing field — comes from zio-json's JsonError.render trace rendering.
+      thrown.getMessage should include("id")
+    }
+
+    "surface `Unexpected end of input` when the streaming path runs out of bytes mid-parse" in {
+      val registry  = new CodecRegistry().register(ZTemporalCodec[User])
+      val converter = new ZioJsonPayloadConverter(registry)
+      // Truncate mid-object: the reader hits EOF before closing brace.
+      val payload = Payload
+        .newBuilder()
+        .putMetadata("encoding", ByteString.copyFromUtf8("json/zio"))
+        .setData(ByteString.copyFrom("""{"id":1,"name":"al""", StandardCharsets.UTF_8))
+        .build()
+
+      val thrown = the[DataConverterException] thrownBy converter.fromData(payload, classOf[User], classOf[User])
+      thrown.getMessage should include(classOf[User].getName)
+    }
+  }
 }
 
 object TripleFixture {

@@ -3,9 +3,9 @@ package zio.temporal.json
 import com.google.protobuf.ByteString
 import io.temporal.api.common.v1.Payload
 import io.temporal.common.converter._
-import zio.json.{JsonDecoder, JsonEncoder}
+import zio.json.{JsonDecoder, JsonEncoder, JsonError}
 
-import java.io.OutputStreamWriter
+import java.io.{InputStreamReader, OutputStreamWriter}
 import java.lang.reflect.Type
 import java.nio.charset.StandardCharsets
 import java.util.Optional
@@ -211,20 +211,34 @@ final class ZioJsonPayloadConverter(registry: CodecRegistry, encodingName: Strin
           s"Currently registered: [${registry.registeredTypeNames.mkString(", ")}]"
       )
     }
-    val json   = content.getData.toStringUtf8
-    val result = decoder.asInstanceOf[JsonDecoder[T]].decodeJson(json)
-    result match {
-      case Right(v)  => v
-      case Left(err) => throw new DataConverterException(s"Failed to decode payload as ${valueType.getTypeName}: $err")
-    }
+    streamingDecode(content, decoder.asInstanceOf[JsonDecoder[T]], valueType.getTypeName)
+  }
+
+  /** Streaming decode: zio-json reads characters directly from the payload's underlying bytes via an
+    * `InputStreamReader` → `WithRetractReader` chain, skipping the `String` intermediate that `ByteString.toStringUtf8`
+    * + `decodeJson(String)` would have produced. For any non-trivial payload this saves a full copy of the input bytes
+    * (one round-trip bytes → String). The caught exceptions and the produced `Left`-shaped error messages mirror
+    * `JsonDecoder#decodeJson` exactly, so `DataConverterException` text is unchanged from the pre-streaming path.
+    */
+  private def streamingDecode[A](content: Payload, decoder: JsonDecoder[A], targetName: String): A = {
+    val inputStream = content.getData.newInput()
+    val reader      = new zio.json.internal.WithRetractReader(
+      new InputStreamReader(inputStream, StandardCharsets.UTF_8)
+    )
+    try decoder.unsafeDecode(Nil, reader)
+    catch {
+      case e: JsonDecoder.UnsafeJson =>
+        throw new DataConverterException(s"Failed to decode payload as $targetName: ${JsonError.render(e.trace)}")
+      case _: zio.json.internal.UnexpectedEnd =>
+        throw new DataConverterException(s"Failed to decode payload as $targetName: Unexpected end of input")
+      case _: StackOverflowError =>
+        throw new DataConverterException(s"Failed to decode payload as $targetName: Unexpected structure")
+    } finally reader.close() // closes the InputStreamReader, which closes the ByteString's InputStream
   }
 
   private def decodeAsAny(content: Payload): Any | Null = {
-    val json = content.getData.toStringUtf8
-    JsonDecoder[zio.json.ast.Json].decodeJson(json) match {
-      case Left(err)  => throw new DataConverterException(s"Failed to decode Object-typed payload: $err")
-      case Right(ast) => astToAny(ast)
-    }
+    val ast = streamingDecode(content, JsonDecoder[zio.json.ast.Json], "java.lang.Object")
+    astToAny(ast)
   }
 
   /** Map a zio-json AST node to the closest Java-boxed / Scala-collection runtime value. The integer / long / double
