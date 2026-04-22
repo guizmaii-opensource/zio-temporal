@@ -7,16 +7,15 @@ import zio.temporal.workflow.ZWorkflowClient
 
 /** Maintains worker creation and lifecycle.
   *
-  * The `codecRegistry` is propagated from the upstream `ZWorkflowClient` (which took it from
-  * `ZWorkflowClientOptions`) so every worker created by this factory shares the same registry instance — the
-  * client and its workers therefore auto-register into the same append-only registry that the data converter
-  * reads on encode/decode.
+  * The `codecRegistry` is propagated from the upstream `ZWorkflowClient` (which took it from `ZWorkflowClientOptions`)
+  * so every worker created by this factory shares the same registry instance — the client and its workers therefore
+  * auto-register into the same append-only registry that the data converter reads on encode/decode.
   *
   * @see
   *   [[WorkerFactory]]
   */
 final class ZWorkerFactory private[zio] (
-  val toJava:                     WorkerFactory,
+  val toJava: WorkerFactory,
   private[zio] val codecRegistry: Option[CodecRegistry]) {
 
   /** Secondary constructor retained for call sites that don't have a registry reference. */

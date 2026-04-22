@@ -19,14 +19,14 @@ import scala.reflect.ClassTag
 /** Hosts activity and workflow implementations. Uses long poll to receive activity and workflow tasks and processes
   * them in a correspondent thread pool.
   *
-  * The `codecRegistry` carried here is the ''same'' `CodecRegistry` owned by this worker's
-  * `ZWorkflowClientOptions`. When `None`, the user supplied a custom `DataConverter` via `withDataConverter(raw)`
-  * and auto-registration is a silent no-op. When `Some`, the auto-registration call sites (`addWorkflow[I]` /
-  * `addActivityImplementation(impl)` / …) populate the registry at invocation time so users don't need to chain
-  * `.addInterface[...]` by hand on the options.
+  * The `codecRegistry` carried here is the ''same'' `CodecRegistry` owned by this worker's `ZWorkflowClientOptions`.
+  * When `None`, the user supplied a custom `DataConverter` via `withDataConverter(raw)` and auto-registration is a
+  * silent no-op. When `Some`, the auto-registration call sites (`addWorkflow[I]` / `addActivityImplementation(impl)` /
+  * …) populate the registry at invocation time so users don't need to chain `.addInterface[...]` by hand on the
+  * options.
   */
 class ZWorker private[zio] (
-  val toJava:                     Worker,
+  val toJava: Worker,
   private[zio] val codecRegistry: Option[CodecRegistry]) {
 
   /** Secondary constructor retained for call sites that don't have a registry reference. */
@@ -53,12 +53,12 @@ class ZWorker private[zio] (
 
   /** Adds workflow to this worker.
     *
-    * Auto-registration: the codecs for every parameter and return type of `I`'s `@workflowMethod` /
-    * `@signalMethod` / `@queryMethod` methods are registered into this worker's `CodecRegistry` at compile time.
-    * This eliminates the need to chain `.addInterface[I]` on `ZWorkflowClientOptions.withCodecRegistry(...)`.
+    * Auto-registration: the codecs for every parameter and return type of `I`'s `@workflowMethod` / `@signalMethod` /
+    * `@queryMethod` methods are registered into this worker's `CodecRegistry` at compile time. This eliminates the need
+    * to chain `.addInterface[I]` on `ZWorkflowClientOptions.withCodecRegistry(...)`.
     *
-    * Opt-out: when the user supplied a custom `DataConverter` via `withDataConverter(raw)`, the registry is `None`
-    * and this auto-registration is a silent no-op — the foreign converter is trusted to handle serialization.
+    * Opt-out: when the user supplied a custom `DataConverter` via `withDataConverter(raw)`, the registry is `None` and
+    * this auto-registration is a silent no-op — the foreign converter is trusted to handle serialization.
     */
   inline def addWorkflow[I: ExtendsWorkflow]: ZWorker.AddWorkflowDsl[I] = {
     zio.temporal.json.CodecRegistry.autoRegisterInterface[I](codecRegistry)
@@ -123,12 +123,12 @@ class ZWorker private[zio] (
   /** Registers activity implementation objects with a worker. An implementation object can implement one or more
     * activity types.
     *
-    * Auto-registration: at compile time, the macro walks `A`'s base classes for every `@activityInterface`-
-    * annotated ancestor and registers each interface's codecs into this worker's `CodecRegistry`. This eliminates
-    * the need to chain `.addInterface[A]` on `ZWorkflowClientOptions.withCodecRegistry(...)`.
+    * Auto-registration: at compile time, the macro walks `A`'s base classes for every `@activityInterface`- annotated
+    * ancestor and registers each interface's codecs into this worker's `CodecRegistry`. This eliminates the need to
+    * chain `.addInterface[A]` on `ZWorkflowClientOptions.withCodecRegistry(...)`.
     *
-    * Opt-out: when the user supplied a custom `DataConverter` via `withDataConverter(raw)`, the registry is `None`
-    * and this auto-registration is a silent no-op.
+    * Opt-out: when the user supplied a custom `DataConverter` via `withDataConverter(raw)`, the registry is `None` and
+    * this auto-registration is a silent no-op.
     *
     * @see
     *   [[Worker#registerActivitiesImplementations]]
@@ -160,9 +160,9 @@ class ZWorker private[zio] (
     * the activity interface, not by the implementation.
     *
     * Auto-registration: each `ZActivityImplementationObject` carries a `registerCodecs` thunk captured at its
-    * construction time, so the element types are not lost by the `List[_]` boundary. This method invokes every
-    * thunk against this worker's registry before handing the impls to the Java SDK. Opt-out
-    * (`withDataConverter(raw)` → `codecRegistry = None`) is a silent no-op.
+    * construction time, so the element types are not lost by the `List[_]` boundary. This method invokes every thunk
+    * against this worker's registry before handing the impls to the Java SDK. Opt-out (`withDataConverter(raw)` →
+    * `codecRegistry = None`) is a silent no-op.
     */
   def addActivityImplementations(
     activityImplementationObjects: List[ZActivityImplementationObject[_]]
@@ -372,8 +372,8 @@ object ZWorker {
 
   /** Adds activity from the ZIO environment.
     *
-    * Auto-registration: `inline` so the inner `addActivityImplementation[Activity]` macro sees a concrete
-    * `Activity`. Same opt-out semantics as the instance-side method.
+    * Auto-registration: `inline` so the inner `addActivityImplementation[Activity]` macro sees a concrete `Activity`.
+    * Same opt-out semantics as the instance-side method.
     */
   inline def addActivityImplementationService[Activity <: AnyRef: ExtendsActivity: Tag]
     : ZWorker.Add[Nothing, Activity] =
@@ -410,10 +410,10 @@ object ZWorker {
 
     /** Registers workflow implementation classes with a worker. Can be called multiple times to add more types.
       *
-      * Auto-registration: the aspect's public call site (`ZWorker.addWorkflow[I].fromClass`) always has a concrete
-      * `I`, so we auto-register `I`'s codecs inside the aspect's `flatMap` — where the worker is available — by
-      * going through the (inline) `worker.addWorkflow[I]` method. Making `fromClass` itself inline keeps the macro
-      * expansion visible at the user's concrete call site instead of inside this generic class's compilation.
+      * Auto-registration: the aspect's public call site (`ZWorker.addWorkflow[I].fromClass`) always has a concrete `I`,
+      * so we auto-register `I`'s codecs inside the aspect's `flatMap` — where the worker is available — by going
+      * through the (inline) `worker.addWorkflow[I]` method. Making `fromClass` itself inline keeps the macro expansion
+      * visible at the user's concrete call site instead of inside this generic class's compilation.
       *
       * @param ctg
       *   workflow interface class tag

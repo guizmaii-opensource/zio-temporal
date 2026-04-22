@@ -30,8 +30,8 @@ import scala.reflect.ClassTag
   *   [[TestWorkflowEnvironment]]
   */
 class ZTestWorkflowEnvironment[+R] private[zio] (
-  val toJava:                     TestWorkflowEnvironment,
-  runtime:                        zio.Runtime[R],
+  val toJava: TestWorkflowEnvironment,
+  runtime:    zio.Runtime[R],
   private[zio] val codecRegistry: Option[CodecRegistry]) {
 
   /** Secondary constructor retained for call sites that don't have a registry reference. */
@@ -144,9 +144,8 @@ class ZTestWorkflowEnvironment[+R] private[zio] (
 
 object ZTestWorkflowEnvironment {
 
-  /** Internal helper used by the inline `newWorkflowStub[A]` (no-arg, deprecated) — wraps the testEnv access and
-    * the codec auto-reg thunk. Cannot be inline itself because the deprecated DSL class constructor is
-    * `private[zio]`.
+  /** Internal helper used by the inline `newWorkflowStub[A]` (no-arg, deprecated) — wraps the testEnv access and the
+    * codec auto-reg thunk. Cannot be inline itself because the deprecated DSL class constructor is `private[zio]`.
     */
   @zio.temporal.internalApi
   def buildTestEnvTaskQueueDsl[A: ClassTag](
@@ -207,8 +206,8 @@ object ZTestWorkflowEnvironment {
 
   /** Creates new typed workflow stub builder.
     *
-    * Auto-registration: auto-registers `A`'s codecs into the test env's registry (which is the same one shared
-    * with its embedded client and workers). Opt-out (`withDataConverter(raw)` → `None`) is a silent no-op.
+    * Auto-registration: auto-registers `A`'s codecs into the test env's registry (which is the same one shared with its
+    * embedded client and workers). Opt-out (`withDataConverter(raw)` → `None`) is a silent no-op.
     *
     * @tparam A
     *   workflow interface

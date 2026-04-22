@@ -19,7 +19,7 @@ import zio.temporal.json.CodecRegistry
   *   `ZActivityImplementationObject.apply[T]`.
   */
 final class ZActivityImplementationObject[T <: AnyRef] private[zio] (
-  val value:                          T,
+  val value: T,
   private[zio] val registerCodecs: Option[CodecRegistry] => Unit) {
 
   /** Secondary no-op constructor for binary compatibility with legacy callers that don't build via

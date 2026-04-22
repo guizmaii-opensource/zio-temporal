@@ -11,17 +11,17 @@ import scala.reflect.ClassTag
 
 /** Represents Temporal workflow client
   *
-  * The `codecRegistry` carried here is the ''same'' `CodecRegistry` instance that backs this client's
-  * `DataConverter` (when the default zio-json data converter is in use). Auto-registration call sites
-  * (`newWorkflowStub[A]`, `ZWorker.addWorkflow[I]`, …) mutate it at invocation time so users no longer need to
-  * chain `.addInterface[...]` by hand. `None` indicates the user supplied a custom `DataConverter` via
-  * `withDataConverter(raw)`; in that case auto-registration is a silent no-op.
+  * The `codecRegistry` carried here is the ''same'' `CodecRegistry` instance that backs this client's `DataConverter`
+  * (when the default zio-json data converter is in use). Auto-registration call sites (`newWorkflowStub[A]`,
+  * `ZWorker.addWorkflow[I]`, …) mutate it at invocation time so users no longer need to chain `.addInterface[...]` by
+  * hand. `None` indicates the user supplied a custom `DataConverter` via `withDataConverter(raw)`; in that case
+  * auto-registration is a silent no-op.
   *
   * @see
   *   [[WorkflowClient]]
   */
 final class ZWorkflowClient private[zio] (
-  val toJava:                     WorkflowClient,
+  val toJava: WorkflowClient,
   private[zio] val codecRegistry: Option[CodecRegistry]) {
 
   /** Secondary constructor retained for call sites that don't have a registry reference. */
@@ -36,9 +36,9 @@ final class ZWorkflowClient private[zio] (
 
   /** Creates new typed workflow stub builder.
     *
-    * Auto-registration: the codecs for every parameter and return type of `A`'s `@workflowMethod` /
-    * `@signalMethod` / `@queryMethod` methods are registered into this client's `CodecRegistry` at compile time.
-    * Opt-out (`withDataConverter(raw)` → `codecRegistry = None`) is a silent no-op.
+    * Auto-registration: the codecs for every parameter and return type of `A`'s `@workflowMethod` / `@signalMethod` /
+    * `@queryMethod` methods are registered into this client's `CodecRegistry` at compile time. Opt-out
+    * (`withDataConverter(raw)` → `codecRegistry = None`) is a silent no-op.
     *
     * @tparam A
     *   workflow interface
@@ -231,8 +231,8 @@ final class ZWorkflowClient private[zio] (
 
 object ZWorkflowClient {
 
-  /** Internal helper used by `inline def newWorkflowStub[A]` (no args) — needed because Scala 3 inline methods
-    * cannot directly invoke `private[zio]` constructors. Package-private so only the inline site can call it.
+  /** Internal helper used by `inline def newWorkflowStub[A]` (no args) — needed because Scala 3 inline methods cannot
+    * directly invoke `private[zio]` constructors. Package-private so only the inline site can call it.
     */
   @zio.temporal.internalApi
   def buildTaskQueueDsl[A: ClassTag](client: ZWorkflowClient): ZWorkflowStubBuilderTaskQueueDsl.Of[A] =
@@ -257,12 +257,12 @@ object ZWorkflowClient {
   /** Create [[ZWorkflowClient]] instance.
     *
     * The `codecRegistry` carried by [[ZWorkflowClientOptions]] is threaded into the resulting client so the
-    * auto-registration call sites (`ZWorker.addWorkflow[I]`, `newWorkflowStub[A]`, …) can populate it at their
-    * natural usage points, eliminating the need for manual `.addInterface[...]` calls.
+    * auto-registration call sites (`ZWorker.addWorkflow[I]`, `newWorkflowStub[A]`, …) can populate it at their natural
+    * usage points, eliminating the need for manual `.addInterface[...]` calls.
     *
-    * The registry is allowed to start empty: codecs are added incrementally by `addWorkflow` / `newWorkflowStub`
-    * / `addActivityImplementation`. If the user forgets to register any workflow or activity type at all, the
-    * first payload encode produces a clear "No ZTemporalCodec registered for runtime class …" error from
+    * The registry is allowed to start empty: codecs are added incrementally by `addWorkflow` / `newWorkflowStub` /
+    * `addActivityImplementation`. If the user forgets to register any workflow or activity type at all, the first
+    * payload encode produces a clear "No ZTemporalCodec registered for runtime class …" error from
     * `ZioJsonPayloadConverter`.
     *
     * @see
