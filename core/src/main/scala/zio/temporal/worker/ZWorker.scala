@@ -4,6 +4,7 @@ import zio._
 import zio.temporal.internal.ClassTagUtils
 import io.temporal.worker.Worker
 import zio.temporal.activity.{ExtendsActivity, IsActivity, ZActivityImplementationObject}
+import zio.temporal.json.CodecRegistry
 import zio.temporal.workflow.{
   ExtendsWorkflow,
   HasPublicNullaryConstructor,
@@ -17,9 +18,19 @@ import scala.reflect.ClassTag
 
 /** Hosts activity and workflow implementations. Uses long poll to receive activity and workflow tasks and processes
   * them in a correspondent thread pool.
+  *
+  * The `codecRegistry` carried here is the ''same'' `CodecRegistry` owned by this worker's
+  * `ZWorkflowClientOptions`. When `None`, the user supplied a custom `DataConverter` via `withDataConverter(raw)`
+  * and auto-registration is a silent no-op. When `Some`, the auto-registration call sites (`addWorkflow[I]` /
+  * `addActivityImplementation(impl)` / …) populate the registry at invocation time so users don't need to chain
+  * `.addInterface[...]` by hand on the options.
   */
 class ZWorker private[zio] (
-  val toJava: Worker) {
+  val toJava:                     Worker,
+  private[zio] val codecRegistry: Option[CodecRegistry]) {
+
+  /** Secondary constructor retained for call sites that don't have a registry reference. */
+  private[zio] def this(toJava: Worker) = this(toJava, None)
 
   def taskQueue: String =
     toJava.getTaskQueue
