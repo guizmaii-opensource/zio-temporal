@@ -35,6 +35,22 @@ class InvocationMacroUtils[Q <: Quotes](using override val q: Q) extends MacroUt
   private val erasedToObjectTypes: List[Symbol] =
     List(typeSymbolOf[java.lang.Object], typeSymbolOf[Matchable], typeSymbolOf[Any])
 
+  // Scala primitives in a `A | Null` parameter erase to `java.lang.Object` at the JVM signature level — a primitive
+  // slot cannot hold `null`, so the Scala 3 compiler widens the slot to `Object`. Temporal's worker reflection then
+  // sees `classOf[Object]` and the decode path has no way to recover the intended user type. These are the primitive
+  // `A`s where the `A | Null` parameter shape triggers that erasure.
+  private lazy val primitiveErasedToObjectWhenUnionWithNull: List[TypeRepr] =
+    List(
+      TypeRepr.of[Int],
+      TypeRepr.of[Long],
+      TypeRepr.of[Boolean],
+      TypeRepr.of[Double],
+      TypeRepr.of[Float],
+      TypeRepr.of[Short],
+      TypeRepr.of[Byte],
+      TypeRepr.of[Char]
+    )
+
   def betaReduceExpression[A: Type](f: Expr[A]): Expr[A] =
     Expr.betaReduce(f).asTerm.underlying.asExprOf[A]
 
@@ -159,8 +175,14 @@ class InvocationMacroUtils[Q <: Quotes](using override val q: Q) extends MacroUt
               val baseClassesWidened   = widenedType.baseClasses
               val allBaseClasses       = (baseClassesDealiased ++ baseClassesWidened).distinct
 
-              // If all base classes are top-level types (Object/Any/Matchable), it would be erased to Object
-              if (allBaseClasses.forall(erasedToObjectTypes.contains)) {
+              // `A | Null` erases to `Object` when either:
+              //   - `A` is a Scala primitive — JVM primitive slots cannot hold `null`, so the compiler widens, OR
+              //   - `A`'s base classes are all top-level types (Object/Any/Matchable) — e.g. `Any | Null` itself.
+              // Reference types like `String | Null` or `TestId | Null` (newtype over String) keep the reference
+              // slot and carry enough type information through reflection, so they are intentionally not flagged.
+              val isErasedPrimitive =
+                primitiveErasedToObjectWhenUnionWithNull.exists(p => p =:= dealiasedType || p =:= widenedType)
+              if (isErasedPrimitive || allBaseClasses.forall(erasedToObjectTypes.contains)) {
                 Some(
                   SharedCompileTimeMessages.TemporalMethodParameterIssue.erasedToJavaLangObject(
                     name = param.name.toString,
