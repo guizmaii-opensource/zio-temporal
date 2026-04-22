@@ -4,7 +4,7 @@ import zio._
 import zio.logging.backend.SLF4J
 import zio.temporal._
 import zio.temporal.json.CodecRegistry
-import zio.temporal.protobuf.{ProtobufDataConverter, scalapbMessageZTemporalCodec}
+import zio.temporal.protobuf.{ProtobufDataConverter, scalapbMessageZTemporalCodec, scalapbSealedOneofZTemporalCodec}
 import zio.temporal.worker._
 import zio.temporal.workflow._
 import scala.reflect.ClassTag
@@ -177,11 +177,15 @@ object ProtobufParameterizedWorkflowMain extends ZIOAppDefault {
         ZWorkflowClientOptions.make @@
           ZWorkflowClientOptions.withDataConverter(
             ProtobufDataConverter.make(
+              // Protobuf-typed workflows: the method signatures use scalapb-generated sealed-oneof messages
+              // whose inheritance graph (`concrete <: NonEmpty <: sealed-oneof`) trips the compile-time
+              // `addInterface` walk when it tries to summon a codec for the intermediate `NonEmpty` marker.
+              // Register the top-level oneof codecs explicitly — `encoderForClass` walks the supertype chain
+              // at runtime so any concrete `ChildWorkflowSodaInput` / `WorkflowJuiceInput` value dispatches
+              // through the registered parent codec.
               new CodecRegistry()
-                .addInterface[SodaChildWorkflow]
-                .addInterface[JuiceChildWorkflow]
-                .addInterface[SodaWorkflow]
-                .addInterface[JuiceWorkflow]
+                .register(ZTemporalCodec[ChildWorkflowInput])
+                .register(ZTemporalCodec[WorkflowInput])
             )
           ),
         ZWorkerFactoryOptions.make

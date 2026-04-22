@@ -101,6 +101,14 @@ object InterfaceCodecsMacros {
     // codec. Both sides converge on the same wrapped JSON shape (e.g. `{"Soda":{...}}`) — otherwise a directly
     // registered `Soda` codec would emit a flat `{"kind":"cola"}` that the parent-registered decoder rejects.
     //
+    // Walk the candidate chain nearest-first and promote to the first ancestor that actually has a summonable
+    // `ZTemporalCodec`. This matters for scalapb-generated sealed-oneof messages: a `ChildWorkflowInput.Soda`
+    // has `NonEmpty` as its nearest sealed ancestor (a scalapb-internal marker with no codec) and
+    // `ChildWorkflowInput` one level further up (which does have a codec via `scalapbSealedOneofZTemporalCodec`).
+    // Picking the first promoting ancestor with a codec lets that case compile while keeping the common
+    // "user sealed trait + derived JsonCodec" case unchanged. Fall back to the original type if no ancestor has
+    // a codec — the outer summon either succeeds (the subtype itself has a codec) or fails in the normal path.
+    //
     // Standard-library sealed traits (e.g. `scala.deriving.Mirror`, which is an ancestor of every case object's
     // mirror) are intentionally excluded — they are internal markers, not serialization targets.
     def promoteToSealedParent(tpe: TypeRepr): TypeRepr = {
