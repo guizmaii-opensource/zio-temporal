@@ -38,6 +38,12 @@ object InterfaceCodecsMacros {
   /** Implementation of the auto-registration call site for an interface. Emits
     * `registryOpt.foreach { r => r.register(codec1); r.register(codec2); ... }` at compile time. Opt-out
     * (`codecRegistry = None`) is a silent no-op because the `foreach` body is empty.
+    *
+    * Accepts either a `@workflowInterface`-annotated type (common case) ''or'' a workflow ''implementation'' class
+    * whose supertypes include a `@workflowInterface`. Impl classes show up at
+    * `ZWorker.addWorkflow[Impl].fromClass` call sites — the user's `Impl` satisfies `ExtendsWorkflow` via ancestry
+    * but doesn't carry `@workflowMethod` annotations directly. We walk its base classes for
+    * `@workflowInterface`- or `@activityInterface`-annotated ancestors and register each interface's codecs.
     */
   def autoRegisterInterfaceImpl[I: Type](
     registryOpt: Expr[Option[CodecRegistry]]
@@ -45,11 +51,44 @@ object InterfaceCodecsMacros {
   ): Expr[Unit] = {
     import q.reflect.*
     val helpers = new InterfaceCodecsHelpers[q.type]
-    val codecs  = helpers.collectInterfaceCodecs[I](
-      interfaceSym = TypeRepr.of[I].typeSymbol,
-      context = "auto-register"
-    )
-    helpers.foldForeachRegistrations(registryOpt, codecs)
+
+    val implRepr = TypeRepr.of[I]
+    val implSym  = implRepr.typeSymbol
+
+    val WorkflowInterfaceSym = TypeRepr.of[workflowInterface].typeSymbol
+    val ActivityInterfaceSym = TypeRepr.of[activityInterface].typeSymbol
+
+    // If the type itself is annotated with @workflowInterface / @activityInterface, use it directly.
+    // Otherwise walk ancestors for the closest annotated interface(s). Fall back to `I` itself if neither
+    // the type nor any ancestor is annotated — the collector will then emit a clear error.
+    val interfaceSyms: List[Symbol] = {
+      val selfAnnotated =
+        implSym.hasAnnotation(WorkflowInterfaceSym) || implSym.hasAnnotation(ActivityInterfaceSym)
+
+      if (selfAnnotated) List(implSym)
+      else {
+        val ancestors = implRepr.baseClasses.filter { base =>
+          base != implSym &&
+          (base.hasAnnotation(WorkflowInterfaceSym) || base.hasAnnotation(ActivityInterfaceSym))
+        }.distinct
+        if (ancestors.nonEmpty) ancestors
+        else List(implSym)
+      }
+    }
+
+    val allCodecs = interfaceSyms.flatMap { ifaceSym =>
+      helpers.collectInterfaceCodecs[I](
+        interfaceSym = ifaceSym,
+        context = "auto-register",
+        strict = false
+      )
+    }
+    // Dedupe across interfaces (two ifaces can share a type — e.g. common Input).
+    val deduped = allCodecs.foldLeft(List.empty[helpers.CollectedCodec]) { (acc, c) =>
+      if (acc.exists(_.tpe =:= c.tpe)) acc else acc :+ c
+    }
+
+    helpers.foldForeachRegistrations(registryOpt, deduped)
   }
 
   /** Implementation of the auto-registration call site for an activity ''implementation''. The type parameter `A` is
@@ -71,20 +110,20 @@ object InterfaceCodecsMacros {
 
     // Find every @activityInterface-annotated supertype in A's base classes. If A is itself annotated
     // (rare but possible), we pick A too. Fall back to just A if no annotated ancestor exists — the
-    // compile-time collector will then emit a clear error.
+    // collector will then either find activity methods on A directly or skip silently (in non-strict mode).
     val activityInterfaces: List[Symbol] =
-      implRepr.baseClasses.filter(_.hasAnnotation(ActivityInterfaceSym)) match {
-        case Nil =>
-          // No annotated ancestor. Defer to a plain walk of A itself; the collector will either find
-          // the activity methods (if A has `@activityMethod`s directly) or abort with a clear error.
-          List(implSym)
-        case xs => xs.distinct
-      }
+      if (implSym.hasAnnotation(ActivityInterfaceSym)) List(implSym)
+      else
+        implRepr.baseClasses.filter(_.hasAnnotation(ActivityInterfaceSym)) match {
+          case Nil => List(implSym)
+          case xs  => xs.distinct
+        }
 
     val allCodecs = activityInterfaces.flatMap { ifaceSym =>
       helpers.collectInterfaceCodecs[A](
         interfaceSym = ifaceSym,
-        context = "auto-register activity"
+        context = "auto-register activity",
+        strict = false
       )
     }
     // Dedupe across interfaces (two ifaces can share a type).
@@ -117,8 +156,18 @@ object InterfaceCodecsMacros {
       * collect all boundary-method parameter and return types, summon a `ZTemporalCodec` for each, and return them
       * as a list of (type, codec-expression) pairs. `context` is used in error messages to tell the user which call
       * site triggered the failure.
+      *
+      * When `strict = true` (the default, used by `addInterface[I]`), a missing codec aborts compilation. When
+      * `strict = false` (used by the auto-registration call sites), types without a summonable codec are silently
+      * skipped — auto-reg must not fail compilation for types the user knowingly left uncodec-able (e.g. Scala 3
+      * `Int | Null` erasure-test fixtures, newtype union tests). Those types erase to `Object` at runtime and the
+      * user accepts that the payload path is not meant to handle them.
       */
-    def collectInterfaceCodecs[I: Type](interfaceSym: Symbol, context: String): List[CollectedCodec] = {
+    def collectInterfaceCodecs[I: Type](
+      interfaceSym: Symbol,
+      context:      String,
+      strict:       Boolean = true
+    ): List[CollectedCodec] = {
       val interfaceRepr = TypeRepr.of[I]
       val interfaceName = interfaceSym.fullName
 
@@ -145,11 +194,17 @@ object InterfaceCodecsMacros {
       }.distinct
 
       if (boundaryMethods.isEmpty) {
-        report.errorAndAbort(
-          s"Interface $interfaceName has no methods annotated with @workflowMethod / @signalMethod / " +
-            s"@queryMethod / @activityMethod, and it is not an @activityInterface whose methods are activities by " +
-            s"default. `$context` against `$interfaceName` has nothing to register."
-        )
+        if (strict) {
+          report.errorAndAbort(
+            s"Interface $interfaceName has no methods annotated with @workflowMethod / @signalMethod / " +
+              s"@queryMethod / @activityMethod, and it is not an @activityInterface whose methods are activities by " +
+              s"default. `$context` against `$interfaceName` has nothing to register."
+          )
+        }
+        // Non-strict: silent no-op. This happens when e.g. `ZWorker.addWorkflow[Impl]` falls through to the
+        // impl class itself because no @workflowInterface ancestor was found — the user should have used the
+        // interface type, but that's their bug to fix and not a compile-time show-stopper here.
+        return Nil
       }
 
       // Collect every type that needs a codec: all parameter types + return type.
@@ -222,7 +277,7 @@ object InterfaceCodecsMacros {
 
       // For each type, summon its ZTemporalCodec. The `t.asType match { case '[tpe] => ... }` dance preserves the
       // type parameter so `register[tpe](...)` type-checks downstream.
-      typesNeedingCodecs.map { t =>
+      typesNeedingCodecs.flatMap { t =>
         t.asType match {
           case '[tpe] =>
             val codecType = TypeRepr.of[ZTemporalCodec[tpe]]
@@ -232,14 +287,22 @@ object InterfaceCodecsMacros {
                 // call below recovers the narrow type via the pattern-matched `'[tpe]`. This is safe because the Scala
                 // tree keeps its precise type — the `Any` is just the Scala-level container type.
                 val codecExpr = success.tree.asExprOf[ZTemporalCodec[tpe]].asInstanceOf[Expr[ZTemporalCodec[Any]]]
-                CollectedCodec(t, codecExpr)
+                List(CollectedCodec(t, codecExpr))
               case failure: ImplicitSearchFailure =>
-                report.errorAndAbort(
-                  s"Cannot auto-register codec for type `${t.show}` referenced in interface `$interfaceName`.\n" +
-                    s"Reason: ${failure.explanation}\n" +
-                    "Provide an implicit `ZTemporalCodec` for this type (typically via zio-json `JsonEncoder` + " +
-                    "`JsonDecoder` on its companion), then re-try."
-                )
+                if (strict) {
+                  report.errorAndAbort(
+                    s"Cannot $context codec for type `${t.show}` referenced in interface `$interfaceName`.\n" +
+                      s"Reason: ${failure.explanation}\n" +
+                      "Provide an implicit `ZTemporalCodec` for this type (typically via zio-json `JsonEncoder` + " +
+                      "`JsonDecoder` on its companion), then re-try."
+                  )
+                } else {
+                  // Non-strict: silently skip. The user either registered the codec elsewhere (explicit
+                  // `.addInterface` / `.register`) or accepts that this type is uncodec-able (e.g. Scala 3 union
+                  // types that erase to Object). A runtime "No ZTemporalCodec registered for …" will still fire
+                  // at encode time if they actually try to serialize a value of the missing type.
+                  Nil
+                }
             }
         }
       }

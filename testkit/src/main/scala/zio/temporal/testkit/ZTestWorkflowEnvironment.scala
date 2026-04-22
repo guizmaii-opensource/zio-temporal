@@ -144,6 +144,21 @@ class ZTestWorkflowEnvironment[+R] private[zio] (
 
 object ZTestWorkflowEnvironment {
 
+  /** Internal helper used by the inline `newWorkflowStub[A]` (no-arg, deprecated) — wraps the testEnv access and
+    * the codec auto-reg thunk. Cannot be inline itself because the deprecated DSL class constructor is
+    * `private[zio]`.
+    */
+  @zio.temporal.internalApi
+  def buildTestEnvTaskQueueDsl[A: ClassTag](
+    autoReg: ZTestWorkflowEnvironment[Any] => Unit
+  ): ZWorkflowStubBuilderTaskQueueDsl[URIO[ZTestWorkflowEnvironment[Any], ZWorkflowStub.Of[A]]] =
+    new ZWorkflowStubBuilderTaskQueueDsl[URIO[ZTestWorkflowEnvironment[Any], ZWorkflowStub.Of[A]]](options =>
+      ZIO.serviceWithZIO[ZTestWorkflowEnvironment[Any]] { testEnv =>
+        autoReg(testEnv)
+        TemporalWorkflowFacade.createWorkflowStubTyped[A](testEnv.workflowClient.toJava).apply(options)
+      }
+    )
+
   /** Setup test environment with a guaranteed finalization.
     *
     * @param options
@@ -190,7 +205,10 @@ object ZTestWorkflowEnvironment {
       ZIO.serviceWithZIO[ZTestWorkflowEnvironment[R]](testEnv => f(testEnv.activityRunOptions))
   }
 
-  /** Creates new typed workflow stub builder
+  /** Creates new typed workflow stub builder.
+    *
+    * Auto-registration: auto-registers `A`'s codecs into the test env's registry (which is the same one shared
+    * with its embedded client and workers). Opt-out (`withDataConverter(raw)` → `None`) is a silent no-op.
     *
     * @tparam A
     *   workflow interface
@@ -198,17 +216,17 @@ object ZTestWorkflowEnvironment {
     *   builder instance
     */
   @deprecated("Use newWorkflowStub accepting ZWorkerOptions", since = "0.6.0")
-  def newWorkflowStub[A: ClassTag: IsWorkflow]
+  inline def newWorkflowStub[A: ClassTag: IsWorkflow]
     : ZWorkflowStubBuilderTaskQueueDsl[URIO[ZTestWorkflowEnvironment[Any], ZWorkflowStub.Of[A]]] =
-    new ZWorkflowStubBuilderTaskQueueDsl[URIO[ZTestWorkflowEnvironment[Any], ZWorkflowStub.Of[A]]](options =>
-      ZIO.serviceWithZIO[ZTestWorkflowEnvironment[Any]] { testEnv =>
-        TemporalWorkflowFacade.createWorkflowStubTyped[A](testEnv.workflowClient.toJava).apply(options)
-      }
-    )
+    buildTestEnvTaskQueueDsl[A] { testEnv =>
+      zio.temporal.json.CodecRegistry.autoRegisterInterface[A](testEnv.codecRegistry)
+    }
 
   /** Creates workflow client stub that can be used to start a single workflow execution. The first call must be to a
     * method annotated with @[[zio.temporal.workflowMethod]]. After workflow is started it can be also used to send
     * signals or queries to it. one.
+    *
+    * Auto-registration: same contract as above. Applies to all `newWorkflowStub[A]` overloads on this object.
     *
     * @tparam A
     *   workflow interface
@@ -217,10 +235,11 @@ object ZTestWorkflowEnvironment {
     * @return
     *   builder instance
     */
-  def newWorkflowStub[A: ClassTag: IsWorkflow](
+  inline def newWorkflowStub[A: ClassTag: IsWorkflow](
     options: ZWorkflowOptions
   ): URIO[ZTestWorkflowEnvironment[Any], ZWorkflowStub.Of[A]] =
     ZIO.serviceWithZIO[ZTestWorkflowEnvironment[Any]] { testEnv =>
+      zio.temporal.json.CodecRegistry.autoRegisterInterface[A](testEnv.codecRegistry)
       TemporalWorkflowFacade.createWorkflowStubTyped[A](testEnv.workflowClient.toJava).apply(options.toJava)
     }
 
@@ -263,6 +282,8 @@ object ZTestWorkflowEnvironment {
 
   /** Creates workflow client stub for a known execution.
     *
+    * Auto-registration: same contract as the other overloads.
+    *
     * @tparam A
     *   interface that given workflow implements.
     * @param workflowId
@@ -272,7 +293,7 @@ object ZTestWorkflowEnvironment {
     * @return
     *   Stub that implements workflowInterface and can be used to signal or query it.
     */
-  def newWorkflowStub[A: ClassTag: IsWorkflow](
+  inline def newWorkflowStub[A: ClassTag: IsWorkflow](
     workflowId: String,
     runId:      Option[String] = None
   ): URIO[ZTestWorkflowEnvironment[Any], ZWorkflowStub.Of[A]] =
