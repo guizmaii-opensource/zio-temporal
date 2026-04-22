@@ -347,6 +347,23 @@ class ZioJsonPayloadConverterSpec extends AnyWordSpec with Matchers {
       payload.getData.toStringUtf8 shouldEqual """{"Right":{"id":1,"name":"a"}}"""
     }
 
+    "round-trip Unit through the DataConverter — encode uses scala.runtime.BoxedUnit as the runtime class" in {
+      // Regression for the CI failure where a workflow/activity method returning `Unit` fed the converter
+      // a `scala.runtime.BoxedUnit.UNIT` value. `ZTemporalCodec[Unit].klass` is `void.class`; `boxedOf`
+      // pins both `BoxedUnit` and `Void` as synonymous encode keys so the runtime-class lookup succeeds.
+      val registry  = new CodecRegistry().register(ZTemporalCodec[Unit])
+      val converter = new ZioJsonPayloadConverter(registry)
+
+      val unitValue: Any = ()
+      unitValue.getClass shouldEqual classOf[scala.runtime.BoxedUnit]
+
+      val payload = converter.toData(unitValue).orElseThrow(() => new AssertionError("expected non-empty"))
+      payload.getData.toStringUtf8 shouldEqual "{}"
+
+      val decoded = converter.fromData(payload, classOf[Unit], classOf[Unit])
+      decoded shouldEqual ((): Unit)
+    }
+
     "container dispatch handles Map[String, User]" in {
       val registry  = new CodecRegistry().register(ZTemporalCodec[User])
       val converter = new ZioJsonPayloadConverter(registry)
@@ -378,6 +395,67 @@ class ZioJsonPayloadConverterSpec extends AnyWordSpec with Matchers {
         ZTemporalCodec[List[List[User]]].genericType
       )
       decoded shouldEqual nested
+    }
+  }
+
+  "ZioJsonPayloadConverter — json/plain compatibility mode" should {
+
+    // Regression for the CI failure in `WorkflowReplayerSpec`. Saved workflow histories recorded under the
+    // old Jackson-based `DefaultDataConverter` carry `encoding=json/plain`. Without Jackson in the chain,
+    // replay blew up with "No PayloadConverter is registered for an encoding: json/plain". A second
+    // `ZioJsonPayloadConverter` instance claiming `json/plain` handles those histories — vanilla JSON, same
+    // registry.
+
+    "claim `json/plain` as its encoding type" in {
+      val converter = new ZioJsonPayloadConverter(new CodecRegistry(), "json/plain")
+      converter.getEncodingType shouldEqual "json/plain"
+    }
+
+    "stamp emitted payloads with the overridden encoding metadata" in {
+      val registry  = new CodecRegistry().register(ZTemporalCodec[User])
+      val converter = new ZioJsonPayloadConverter(registry, "json/plain")
+      val payload   = converter.toData(User(1, "a")).orElseThrow(() => new AssertionError("expected non-empty"))
+      payload.getMetadataOrThrow("encoding").toStringUtf8 shouldEqual "json/plain"
+    }
+
+    "decode a `json/plain`-tagged payload using the same registry and shape as `json/zio`" in {
+      // A payload that could have been produced by Jackson under the old DataConverter (vanilla JSON,
+      // `encoding=json/plain`) now round-trips cleanly through the json/plain ZioJsonPayloadConverter.
+      val registry  = new CodecRegistry().register(ZTemporalCodec[User])
+      val converter = new ZioJsonPayloadConverter(registry, "json/plain")
+      val payload   = Payload
+        .newBuilder()
+        .putMetadata("encoding", ByteString.copyFromUtf8("json/plain"))
+        .setData(ByteString.copyFrom("""{"id":42,"name":"alice"}""", StandardCharsets.UTF_8))
+        .build()
+
+      val decoded = converter.fromData(payload, classOf[User], classOf[User])
+      decoded shouldEqual User(42, "alice")
+    }
+
+    "chain end-to-end: a `json/plain` payload routes through ZioJsonDataConverter to the compat converter" in {
+      // Covers the actual replay wiring — `ZioJsonDataConverter.make` chains a `json/zio` converter followed
+      // by a `json/plain` compat converter, both backed by the same registry. A payload with
+      // encoding=json/plain must be dispatched to the compat converter by `DefaultDataConverter.fromPayload`.
+      val registry      = new CodecRegistry().register(ZTemporalCodec[User])
+      val dataConverter = ZioJsonDataConverter.make(registry)
+      val payload       = Payload
+        .newBuilder()
+        .putMetadata("encoding", ByteString.copyFromUtf8("json/plain"))
+        .setData(ByteString.copyFrom("""{"id":7,"name":"bob"}""", StandardCharsets.UTF_8))
+        .build()
+
+      val decoded = dataConverter.fromPayload(payload, classOf[User], classOf[User])
+      decoded shouldEqual User(7, "bob")
+    }
+
+    "chain end-to-end: fresh encodes always get `json/zio`, never `json/plain`" in {
+      // The `json/plain` converter is decode-only in practice: `DefaultDataConverter.toPayload` stops at the
+      // first converter returning non-empty, and the `json/zio` instance is earlier in the chain.
+      val registry      = new CodecRegistry().register(ZTemporalCodec[User])
+      val dataConverter = ZioJsonDataConverter.make(registry)
+      val encoded       = dataConverter.toPayload(User(1, "a")).orElseThrow(() => new AssertionError("encoded"))
+      encoded.getMetadataOrThrow("encoding").toStringUtf8 shouldEqual "json/zio"
     }
   }
 
