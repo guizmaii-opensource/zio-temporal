@@ -31,7 +31,7 @@ object InterfaceCodecsMacros {
     val helpers = new InterfaceCodecsHelpers[q.type]
     val codecs  = helpers.collectInterfaceCodecs[I](
       interfaceSym = TypeRepr.of[I].typeSymbol,
-      context = "addInterface"
+      context = "auto-register"
     )
     helpers.foldRegistrations(registry, codecs)
   }
