@@ -7,14 +7,14 @@ import zio.temporal.*
 
 /** Unit tests for `CodecRegistry.autoRegisterInterface[I]` and `CodecRegistry.autoRegisterActivityImpl[A]`.
   *
-  * These exercise the same macro machinery as `addInterface[I]` but through the auto-registration entry points
-  * that the inline methods on `ZWorker` / `ZWorkflowClient` invoke. Expected behaviours:
+  * These exercise the same macro machinery as `addInterface[I]` but through the auto-registration entry points that the
+  * inline methods on `ZWorker` / `ZWorkflowClient` invoke. Expected behaviours:
   *
   *   1. When the registry is `Some(r)`, codecs for `I`'s boundary methods are registered into `r`.
   *   2. When the registry is `None`, the call is a silent no-op — no side effects, no compile error.
   *   3. Repeated calls are idempotent (registry ends up the same).
-  *   4. The macro walks supertype chains for `@workflowInterface` / `@activityInterface` ancestors so the user
-  *      can pass an implementation class as the type parameter.
+  *   4. The macro walks supertype chains for `@workflowInterface` / `@activityInterface` ancestors so the user can pass
+  *      an implementation class as the type parameter.
   */
 class CodecRegistryAutoRegisterSpec extends AnyWordSpec with Matchers {
 
@@ -128,7 +128,7 @@ object CodecRegistryAutoRegisterSpec {
   }
 
   class MultiActivityImpl extends MyAutoActivity with OrderActivity {
-    override def save(user: AutoUser): Int   = user.id
+    override def save(user:   AutoUser): Int     = user.id
     override def place(order: AutoOrder): String = order.sku
   }
 }
