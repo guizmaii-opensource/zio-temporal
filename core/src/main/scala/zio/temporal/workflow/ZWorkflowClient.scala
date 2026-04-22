@@ -4,16 +4,28 @@ import io.temporal.client.{ActivityCompletionClient, BuildIdOperation, WorkflowC
 import zio._
 import zio.stream._
 import zio.temporal.internal.{ClassTagUtils, TemporalInteraction, TemporalWorkflowFacade}
+import zio.temporal.json.CodecRegistry
 import zio.temporal.{TemporalIO, ZHistoryEvent, ZWorkflowExecutionHistory, ZWorkflowExecutionMetadata}
 import scala.jdk.OptionConverters._
 import scala.reflect.ClassTag
 
 /** Represents Temporal workflow client
   *
+  * The `codecRegistry` carried here is the ''same'' `CodecRegistry` instance that backs this client's `DataConverter`
+  * (when the default zio-json data converter is in use). Auto-registration call sites (`newWorkflowStub[A]`,
+  * `ZWorker.addWorkflow[I]`, …) mutate it at invocation time so users no longer need to chain `.addInterface[...]` by
+  * hand. `None` indicates the user supplied a custom `DataConverter` via `withDataConverter(raw)`; in that case
+  * auto-registration is a silent no-op.
+  *
   * @see
   *   [[WorkflowClient]]
   */
-final class ZWorkflowClient private[zio] (val toJava: WorkflowClient) {
+final class ZWorkflowClient private[zio] (
+  val toJava: WorkflowClient,
+  private[zio] val codecRegistry: Option[CodecRegistry]) {
+
+  /** Secondary constructor retained for call sites that don't have a registry reference. */
+  private[zio] def this(toJava: WorkflowClient) = this(toJava, None)
 
   /** Creates new ActivityCompletionClient
     * @see
@@ -22,20 +34,29 @@ final class ZWorkflowClient private[zio] (val toJava: WorkflowClient) {
   def newActivityCompletionClient: UIO[ActivityCompletionClient] =
     ZIO.succeedBlocking(toJava.newActivityCompletionClient())
 
-  /** Creates new typed workflow stub builder
+  /** Creates new typed workflow stub builder.
+    *
+    * Auto-registration: the codecs for every parameter and return type of `A`'s `@workflowMethod` / `@signalMethod` /
+    * `@queryMethod` methods are registered into this client's `CodecRegistry` at compile time. Opt-out
+    * (`withDataConverter(raw)` → `codecRegistry = None`) is a silent no-op.
+    *
     * @tparam A
     *   workflow interface
     * @return
     *   builder instance
     */
   @deprecated("Use newWorkflowStub accepting ZWorkerOptions", since = "0.6.0")
-  def newWorkflowStub[A: ClassTag: IsWorkflow]: ZWorkflowStubBuilderTaskQueueDsl.Of[A] =
-    new ZWorkflowStubBuilderTaskQueueDsl.Of[A](TemporalWorkflowFacade.createWorkflowStubTyped[A](toJava))
+  inline def newWorkflowStub[A: ClassTag: IsWorkflow]: ZWorkflowStubBuilderTaskQueueDsl.Of[A] = {
+    zio.temporal.json.CodecRegistry.autoRegisterInterface[A](codecRegistry)
+    ZWorkflowClient.buildTaskQueueDsl[A](this)
+  }
 
   /** Creates workflow client stub that can be used to start a single workflow execution. The first call must be to a
     * method annotated with @[[zio.temporal.workflowMethod]]. After workflow is started it can be also used to send
     * signals or queries to it. IMPORTANT! Stub is per workflow instance. So new stub should be created for each new
     * one.
+    *
+    * Auto-registration: same contract as above. Applies to all three `newWorkflowStub[A]` overloads.
     *
     * @tparam A
     *   interface that given workflow implements
@@ -44,8 +65,10 @@ final class ZWorkflowClient private[zio] (val toJava: WorkflowClient) {
     * @return
     *   Stub that implements workflowInterface and can be used to start workflow and signal or query it after the start.
     */
-  def newWorkflowStub[A: ClassTag: IsWorkflow](options: ZWorkflowOptions): UIO[ZWorkflowStub.Of[A]] =
+  inline def newWorkflowStub[A: ClassTag: IsWorkflow](options: ZWorkflowOptions): UIO[ZWorkflowStub.Of[A]] = {
+    zio.temporal.json.CodecRegistry.autoRegisterInterface[A](codecRegistry)
     TemporalWorkflowFacade.createWorkflowStubTyped[A](toJava).apply(options.toJava)
+  }
 
   /** Creates workflow client stub for a known execution. Use it to send signals or queries to a running workflow. Do
     * not call methods annotated with @[[zio.temporal.workflowMethod]].
@@ -59,18 +82,13 @@ final class ZWorkflowClient private[zio] (val toJava: WorkflowClient) {
     * @return
     *   Stub that implements workflowInterface and can be used to signal or query it.
     */
-  def newWorkflowStub[A: ClassTag: IsWorkflow](
+  inline def newWorkflowStub[A: ClassTag: IsWorkflow](
     workflowId: String,
     runId:      Option[String] = None
-  ): UIO[ZWorkflowStub.Of[A]] =
-    ZIO.succeed {
-      ZWorkflowStub.Of[A](
-        new ZWorkflowStubImpl(
-          toJava.newUntypedWorkflowStub(workflowId, runId.toJava, Option.empty[String].toJava),
-          ClassTagUtils.classOf[A]
-        )
-      )
-    }
+  ): UIO[ZWorkflowStub.Of[A]] = {
+    zio.temporal.json.CodecRegistry.autoRegisterInterface[A](codecRegistry)
+    ZWorkflowClient.buildWorkflowStubFromIds[A](this, workflowId, runId)
+  }
 
   /** Creates new untyped type workflow stub builder
     *
@@ -213,13 +231,39 @@ final class ZWorkflowClient private[zio] (val toJava: WorkflowClient) {
 
 object ZWorkflowClient {
 
+  /** Internal helper used by `inline def newWorkflowStub[A]` (no args) — needed because Scala 3 inline methods cannot
+    * directly invoke `private[zio]` constructors. Package-private so only the inline site can call it.
+    */
+  @zio.temporal.internalApi
+  def buildTaskQueueDsl[A: ClassTag](client: ZWorkflowClient): ZWorkflowStubBuilderTaskQueueDsl.Of[A] =
+    new ZWorkflowStubBuilderTaskQueueDsl.Of[A](TemporalWorkflowFacade.createWorkflowStubTyped[A](client.toJava))
+
+  /** Internal helper used by `inline def newWorkflowStub[A](workflowId, runId)`. */
+  @zio.temporal.internalApi
+  def buildWorkflowStubFromIds[A: ClassTag](
+    client:     ZWorkflowClient,
+    workflowId: String,
+    runId:      Option[String]
+  ): UIO[ZWorkflowStub.Of[A]] =
+    ZIO.succeed {
+      ZWorkflowStub.Of[A](
+        new ZWorkflowStubImpl(
+          client.toJava.newUntypedWorkflowStub(workflowId, runId.toJava, Option.empty[String].toJava),
+          ClassTagUtils.classOf[A]
+        )
+      )
+    }
+
   /** Create [[ZWorkflowClient]] instance.
     *
-    * Fail-fast: when the default zio-json data converter is in use (i.e. `ZWorkflowClientOptions.codecRegistry` is
-    * `Some`), the registry is verified to be non-empty. An empty registry guarantees that every workflow/activity call
-    * will fail at runtime with `"No ZTemporalCodec registered…"` — almost always because the caller forgot to chain
-    * `@@ ZWorkflowClientOptions.withCodecRegistry(...).addInterface[…]`. Failing at client construction gives a precise
-    * error pointing at the setup code instead.
+    * The `codecRegistry` carried by [[ZWorkflowClientOptions]] is threaded into the resulting client so the
+    * auto-registration call sites (`ZWorker.addWorkflow[I]`, `newWorkflowStub[A]`, …) can populate it at their natural
+    * usage points, eliminating the need for manual `.addInterface[...]` calls.
+    *
+    * The registry is allowed to start empty: codecs are added incrementally by `addWorkflow` / `newWorkflowStub` /
+    * `addActivityImplementation`. If the user forgets to register any workflow or activity type at all, the first
+    * payload encode produces a clear "No ZTemporalCodec registered for runtime class …" error from
+    * `ZioJsonPayloadConverter`.
     *
     * @see
     *   [[WorkflowClient]]
@@ -227,35 +271,16 @@ object ZWorkflowClient {
   val make: URLayer[ZWorkflowServiceStubs with ZWorkflowClientOptions, ZWorkflowClient] =
     ZLayer.fromZIO {
       ZIO.environmentWithZIO[ZWorkflowServiceStubs with ZWorkflowClientOptions] { environment =>
-        val options            = environment.get[ZWorkflowClientOptions]
-        val emptyRegistryCheck = options.codecRegistry match {
-          case Some(registry) if registry.size == 0 =>
-            ZIO.die(
-              new IllegalStateException(
-                "ZWorkflowClient was built with an empty CodecRegistry — the default zio-json data converter " +
-                  "has no codecs registered, so every workflow/activity call will fail at runtime with " +
-                  "`No ZTemporalCodec registered for runtime class …`.\n" +
-                  "Register your workflow and activity interfaces at client construction:\n\n" +
-                  "    ZWorkflowClientOptions.make @@\n" +
-                  "      ZWorkflowClientOptions.withCodecRegistry(\n" +
-                  "        new CodecRegistry()\n" +
-                  "          .addInterface[YourWorkflow]\n" +
-                  "          .addInterface[YourActivity]\n" +
-                  "      )\n\n" +
-                  "Or supply a custom DataConverter via `.withDataConverter(...)` to opt out of this check."
-              )
-            )
-          case _ => ZIO.unit
+        val options = environment.get[ZWorkflowClientOptions]
+        ZIO.succeedBlocking {
+          new ZWorkflowClient(
+            WorkflowClient.newInstance(
+              environment.get[ZWorkflowServiceStubs].toJava,
+              options.toJava
+            ),
+            options.codecRegistry
+          )
         }
-        emptyRegistryCheck *>
-          ZIO.succeedBlocking {
-            new ZWorkflowClient(
-              WorkflowClient.newInstance(
-                environment.get[ZWorkflowServiceStubs].toJava,
-                options.toJava
-              )
-            )
-          }
       }
     }
 }
