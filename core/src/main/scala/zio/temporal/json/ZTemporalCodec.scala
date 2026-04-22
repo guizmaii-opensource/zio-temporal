@@ -112,13 +112,7 @@ object ZTemporalCodec extends LowPriorityZTemporalCodecInstances0 with LowPriori
     new JsonDecoder.AbstractJsonDecoder[Unit] {
       override def unsafeDecode(trace: List[zio.json.JsonError], in: zio.json.internal.RetractReader): Unit =
         // Drain whatever JSON is in the stream; a Unit decoder is tolerant of any payload shape.
-        // `Lexer.skipValue` → `skipNumber` throws `UnexpectedEnd` when a bare number runs to EOF
-        // (e.g. the input `"42"`): `skipNumber` keeps reading digits until `readChar` hits EOF. For
-        // Unit semantics "EOF reached" is the same as "nothing more to consume" — both decode to ().
-        try zio.json.internal.Lexer.skipValue(trace, in)
-        catch {
-          case _: zio.json.internal.UnexpectedEnd => ()
-        }
+        zio.json.internal.Lexer.skipValue(trace, in)
 
       override def unsafeFromJsonAST(trace: List[zio.json.JsonError], json: zio.json.ast.Json): Unit = ()
     }
