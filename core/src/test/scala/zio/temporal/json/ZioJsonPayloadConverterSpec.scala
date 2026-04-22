@@ -306,6 +306,47 @@ class ZioJsonPayloadConverterSpec extends AnyWordSpec with Matchers {
       none.getData.toStringUtf8 shouldEqual "null"
     }
 
+    "container dispatch handles Either[String, User] — Left and Right" in {
+      // Regression for the CI failure where `Right(value).getClass == scala.util.Right`, which didn't match
+      // any registered `Either[L, R]` parent codec. Multiple distinct `Either` instantiations registered in the
+      // same registry would all share the same raw class, so per-element dispatch is the only correct strategy.
+      val registry = new CodecRegistry()
+        .register(ZTemporalCodec[String])
+        .register(ZTemporalCodec[User])
+        .register(ZTemporalCodec[Either[String, User]])
+      val converter = new ZioJsonPayloadConverter(registry)
+
+      val right = converter.toData(Right(User(1, "a"))).orElseThrow(() => new AssertionError("right"))
+      right.getData.toStringUtf8 shouldEqual """{"Right":{"id":1,"name":"a"}}"""
+
+      val left = converter.toData(Left("boom")).orElseThrow(() => new AssertionError("left"))
+      left.getData.toStringUtf8 shouldEqual """{"Left":"boom"}"""
+
+      val decoded = converter.fromData(
+        right,
+        classOf[Either[String, User]].asInstanceOf[Class[Either[String, User]]],
+        ZTemporalCodec[Either[String, User]].genericType
+      )
+      decoded shouldEqual Right(User(1, "a"))
+    }
+
+    "container dispatch for Either uses per-element runtime class, so two distinct Either shapes coexist" in {
+      // With both `Either[String, Int]` and `Either[User, User]` registered, encoding a `Right(User(...))`
+      // must use the `User` encoder, not pick an Either codec at random. Because the wire shape
+      // `{"Right":<encoded value>}` is stable across all derived `Either` codecs, this round-trips regardless
+      // of which `Either[L, R]` codec the decoder uses.
+      val registry = new CodecRegistry()
+        .register(ZTemporalCodec[Int])
+        .register(ZTemporalCodec[String])
+        .register(ZTemporalCodec[User])
+        .register(ZTemporalCodec[Either[String, Int]])
+        .register(ZTemporalCodec[Either[User, User]])
+      val converter = new ZioJsonPayloadConverter(registry)
+
+      val payload = converter.toData(Right(User(1, "a"))).orElseThrow(() => new AssertionError("right"))
+      payload.getData.toStringUtf8 shouldEqual """{"Right":{"id":1,"name":"a"}}"""
+    }
+
     "container dispatch handles Map[String, User]" in {
       val registry  = new CodecRegistry().register(ZTemporalCodec[User])
       val converter = new ZioJsonPayloadConverter(registry)

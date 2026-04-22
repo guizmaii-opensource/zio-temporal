@@ -145,6 +145,20 @@ final class ZioJsonPayloadConverter(registry: CodecRegistry) extends PayloadConv
     case None =>
       out.write('n', 'u', 'l', 'l')
       true
+    // `Either` uses per-element dispatch for the same reason as `List` — `v.getClass` (Left/Right) doesn't
+    // carry the left/right type params, so any single registered `Either[A, B]` codec in `byClass` would be
+    // wrong for every other `Either[X, Y]`. Matching zio-json's default derived shape `{"Left":<l>}` /
+    // `{"Right":<r>}` keeps the decode path (which uses the registered `Either[A, B]` codec) round-trip correct.
+    case Left(inner) =>
+      out.write("""{"Left":""")
+      encodeValue(inner, out)
+      out.write('}')
+      true
+    case Right(inner) =>
+      out.write("""{"Right":""")
+      encodeValue(inner, out)
+      out.write('}')
+      true
     case _ => false
   }
 
