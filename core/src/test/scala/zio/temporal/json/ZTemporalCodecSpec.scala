@@ -216,6 +216,24 @@ class ZTemporalCodecSpec extends AnyWordSpec with Matchers {
       c.decoder.decodeJson("""{"type":"Deleted","id":7}""") shouldEqual Right(deleted)
     }
   }
+
+  "ZTemporalCodec construction safety" should {
+
+    "reject ZTemporalCodec.make[List[_]] because List has type parameters" in {
+      // Guards against the silent-corruption path where a `Kind0` keyed on a parameterized type's raw class
+      // (e.g. `classOf[List]`) would let the last-registered `List[X]` overwrite every other instantiation
+      // inside `CodecRegistry.byClass`. Construction must fail loud.
+      val ex = intercept[IllegalArgumentException] {
+        ZTemporalCodec.make[List[Int]](JsonEncoder.list[Int], JsonDecoder.list[Int])
+      }
+      ex.getMessage should include("cannot hold a parameterized type")
+      ex.getMessage should include("kindN")
+    }
+
+    "accept ZTemporalCodec.make[A] for a ground case class" in {
+      noException should be thrownBy ZTemporalCodec.make[Foo](JsonEncoder[Foo], JsonDecoder[Foo])
+    }
+  }
 }
 
 // Fixture types — prove `derives JsonCodec` is enough end-to-end.

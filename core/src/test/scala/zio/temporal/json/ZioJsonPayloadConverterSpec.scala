@@ -5,8 +5,9 @@ import io.temporal.api.common.v1.Payload
 import io.temporal.common.converter.DataConverterException
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-import zio.json.{DeriveJsonCodec, JsonCodec}
+import zio.json.{DeriveJsonCodec, JsonCodec, JsonDecoder, JsonEncoder}
 
+import java.lang.reflect.Type
 import java.nio.charset.StandardCharsets
 
 class ZioJsonPayloadConverterSpec extends AnyWordSpec with Matchers {
@@ -180,6 +181,22 @@ class ZioJsonPayloadConverterSpec extends AnyWordSpec with Matchers {
       val r = new CodecRegistry()
       r.encoderForClass(classOf[User]) shouldBe null
       r.decoderForType(classOf[User]) shouldBe null
+    }
+
+    "reject register when ZTemporalCodec.klass does not match the raw type of genericType" in {
+      // Hand-roll an inconsistent codec (`klass = User`, `genericType = classOf[Org]`) that would otherwise
+      // pollute the `byClass[User]` index with an encoder that actually encodes `Org`. The require on register
+      // must refuse this at the API boundary.
+      val hand = new ZTemporalCodec[User] {
+        val encoder: JsonEncoder[User] = ZTemporalCodec[User].encoder
+        val decoder: JsonDecoder[User] = ZTemporalCodec[User].decoder
+        val klass: Class[User]         = classOf[User]
+        val genericType: Type          = classOf[Org]
+      }
+      val ex = intercept[IllegalArgumentException] {
+        new CodecRegistry().register(hand)
+      }
+      ex.getMessage should include("does not match the raw type")
     }
 
     "key List[User] and List[Org] distinctly by genericType" in {
@@ -375,6 +392,27 @@ class ZioJsonPayloadConverterSpec extends AnyWordSpec with Matchers {
       // Map iteration order is insertion-stable for immutable.Map; the JSON should contain both entries.
       body should include(""""alice":{"id":1,"name":"alice"}""")
       body should include(""""bob":{"id":2,"name":"bob"}""")
+    }
+
+    "escape JSON-unsafe characters in Map keys so encoded output is always valid JSON" in {
+      // Pre-fix, Map keys were written as `"<k.toString>"` with no escaping, producing invalid JSON for keys
+      // containing `"`, `\`, newline, or control characters — and round-trip via the `Map[String, User]`
+      // decoder would fail. This test pins the escape contract.
+      val registry  = new CodecRegistry().register(ZTemporalCodec[User])
+      val converter = new ZioJsonPayloadConverter(registry)
+
+      val tricky = Map(
+        "a\"b"     -> User(1, "quote"),
+        "c\\d"     -> User(2, "backslash"),
+        "e\nf"     -> User(3, "newline"),
+        "g\u0001h" -> User(4, "ctrl")
+      )
+      val payload = converter.toData(tricky).orElseThrow(() => new AssertionError("tricky map"))
+
+      // The emitted JSON must parse back as a Map[String, User] via the registered decoders — any escape
+      // bug produces a parse error here.
+      val decoded = JsonDecoder[Map[String, User]].decodeJson(payload.getData.toStringUtf8)
+      decoded shouldEqual Right(tricky)
     }
 
     "nested List[List[User]] round-trips" in {

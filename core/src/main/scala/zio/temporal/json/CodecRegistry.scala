@@ -2,11 +2,17 @@ package zio.temporal.json
 
 import zio.json.{JsonDecoder, JsonEncoder}
 
-import java.lang.reflect.Type
+import java.lang.reflect.{ParameterizedType, Type}
 import java.util.concurrent.ConcurrentHashMap
 
-/** Thread-safe registry that maps runtime types to the zio-json encoders/decoders that [[ZioJsonPayloadConverter]] uses
-  * to cross a Temporal boundary.
+/** Thread-safe (per-index under append-only use) registry that maps runtime types to the zio-json encoders/decoders
+  * that [[ZioJsonPayloadConverter]] uses to cross a Temporal boundary.
+  *
+  * '''Concurrency contract.''' Each of the three indexes (`byClass`, `byType`, `byRawClass`) is individually safe for
+  * concurrent access — a hit after a completed `register` is always seen by every reader. Cross-index visibility
+  * ''during'' a single `register` call is '''not''' atomic: a concurrent lookup may transiently see one index updated
+  * while another hasn't yet observed the same codec. Under the stated append-only usage the only observable effect is a
+  * transient miss (retriable by the caller); no partial overwrite is possible.
   *
   * The registry is indexed three ways:
   *
@@ -53,6 +59,19 @@ final class CodecRegistry {
     * produce a clear encode-time error. See [[ZioJsonPayloadConverter.encodeValue]].
     */
   def register[A](codec: ZTemporalCodec[A]): this.type = {
+    // Consistency gate: whether the codec is ground or parameterized, `klass` must be the raw runtime class of
+    // `genericType`. A mismatch would let the registry index the codec under a key that `encoderForClass` or
+    // `decoderForType` can never produce, making the codec silently unreachable, OR under a key shared with an
+    // unrelated type (polluting dispatch). Both hazards can be introduced by a hand-built `extends ZTemporalCodec`.
+    require(
+      codec.genericType match {
+        case pt: ParameterizedType => pt.getRawType == codec.klass
+        case t                     => t == codec.klass
+      },
+      s"ZTemporalCodec.klass (${codec.klass.getName}) does not match the raw type of " +
+        s"ZTemporalCodec.genericType (${codec.genericType.getTypeName}). Build parameterized codecs via the " +
+        "kindN givens and ground codecs via `ZTemporalCodec.make[A]` so these stay in sync by construction."
+    )
     if (codec.genericType == codec.klass) {
       byClass.put(codec.klass, (codec.encoder, codec.decoder))
       // Also index every boxed counterpart. Java erases Scala primitives (`Int`/`Long`/...) to

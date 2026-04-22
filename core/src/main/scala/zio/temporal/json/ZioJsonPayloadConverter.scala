@@ -132,10 +132,18 @@ final class ZioJsonPayloadConverter(registry: CodecRegistry, encodingName: Strin
           var first = true
           map.foreach { case (k, value) =>
             if (first) first = false else out.write(',')
-            // JSON object keys must be strings; fall back to `.toString` for non-String keys.
-            out.write('"')
-            out.write(k.toString)
-            out.write('"')
+            // JSON object keys must be strings. Route the key through zio-json's own string encoder so the full
+            // escape table (`"`, `\`, control chars, surrogate pairs) matches what the registered `Map[K, V]`
+            // decoder will accept — and so a key like `Map("a\"b" -> _)` produces valid JSON instead of a
+            // naked `"a"b"`. For non-String keys we still fall back to `.toString`; that is the conservative
+            // default (most common `JsonFieldEncoder[K]` shapes — `UUID`, `Int`, `Instant`, etc. — use
+            // `.toString` too), but a user whose `JsonFieldEncoder[K]` diverges from `.toString` should
+            // register a full `ZTemporalCodec[Map[K, V]]` and skip this per-element path.
+            val keyString = k match {
+              case s: String => s
+              case other     => other.toString
+            }
+            JsonEncoder.string.unsafeEncode(keyString, None, out)
             out.write(':')
             encodeValue(value, out)
           }

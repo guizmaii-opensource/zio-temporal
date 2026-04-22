@@ -150,8 +150,21 @@ object ZTemporalCodec extends LowPriorityZTemporalCodecInstances0 with LowPriori
     val decoder: JsonDecoder[A]
   )(using classTag: ClassTag[A])
       extends ZTemporalCodec[A] {
-    val klass: Class[A]   = classTag.runtimeClass.asInstanceOf[Class[A]]
-    val genericType: Type = classTag.runtimeClass
+    private val runtime = classTag.runtimeClass
+    // Prevent the `make[List[Foo]]` / `derived[List[Foo]]` footgun: a parameterized type is indistinguishable
+    // from its raw class under `classTag.runtimeClass` (Scala erases type arguments at that boundary). If we
+    // accepted such a codec, `CodecRegistry.register` would index it under `byClass[List]` and the last-registered
+    // `List[X]` would silently overwrite every other instantiation.
+    require(
+      runtime.getTypeParameters.length == 0,
+      s"ZTemporalCodec.Kind0 cannot hold a parameterized type: `${runtime.getName}` has " +
+        s"${runtime.getTypeParameters.length} type parameter(s). Keying a parameterized type on its raw class " +
+        s"would let the last-registered `${runtime.getSimpleName}[X]` silently overwrite every other " +
+        "instantiation. Use a kindN given (`kind1[F[_], A]`, `kind2[F[_,_], A, B]`, …) so the full " +
+        "`ParameterizedType` is retained."
+    )
+    val klass: Class[A]   = runtime.asInstanceOf[Class[A]]
+    val genericType: Type = runtime
   }
 
   private[json] final class KindN[A](
@@ -163,6 +176,11 @@ object ZTemporalCodec extends LowPriorityZTemporalCodecInstances0 with LowPriori
 
   /** A `java.lang.reflect.ParameterizedType` that implements `equals`/`hashCode` structurally. */
   private[json] final class ZParameterizedType(rawType: Class[_], typeArgs: Array[Type]) extends ParameterizedType {
+    require(
+      typeArgs.length == rawType.getTypeParameters.length,
+      s"ZParameterizedType arity mismatch: `${rawType.getName}` declares ${rawType.getTypeParameters.length} " +
+        s"type parameter(s), but ${typeArgs.length} type argument(s) were supplied."
+    )
     override def getActualTypeArguments: Array[Type] = typeArgs
     override def getRawType: Type                    = rawType
     override def getOwnerType: Type                  = null
