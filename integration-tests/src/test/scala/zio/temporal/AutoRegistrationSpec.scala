@@ -92,9 +92,12 @@ object AutoRegistrationSpec extends ZIOSpecDefault {
         typeNames.count(_ == "java.lang.String") == 1
       )
     }.provideSomeLayer[Scope](emptyRegistryWorkflowEnv),
-    test("opt-out: when withDataConverter(raw) is used, the registry is None and auto-reg is a no-op") {
-      // Use a mock DataConverter that just echoes a fixed payload. The important thing is that setting it via
-      // withDataConverter clears codecRegistry to None, and auto-reg must then be a silent no-op.
+    test("opt-out: when withDataConverter(raw) is used, auto-reg at a call site is a silent no-op") {
+      // Use Temporal's stock DataConverter (Jackson-based) rather than our zio-json one. `withDataConverter`
+      // clears `codecRegistry` to `None`, so the macro-generated `None.foreach { r => r.register(...) }` body
+      // never runs — and crucially, this must succeed (not throw) even though the call site references a
+      // workflow interface and registry access would otherwise require `Some`. The worker creation returning
+      // normally is what the test asserts.
       val rawConverter = DefaultDataConverter.STANDARD_INSTANCE
       val options      =
         ZWorkflowClientOptions.make @@ ZWorkflowClientOptions.withDataConverter(rawConverter)
@@ -107,12 +110,19 @@ object AutoRegistrationSpec extends ZIOSpecDefault {
           ZTestWorkflowEnvironment.make[Any]
         )
 
-      ZIO
-        .serviceWith[ZTestWorkflowEnvironment[Any]] { env =>
-          // Registry must be None when a custom DataConverter is in use.
-          assertTrue(env.codecRegistry.isEmpty)
-        }
-        .provideSomeLayer[Scope](customEnvLayer)
+      (for {
+        env <- ZIO.service[ZTestWorkflowEnvironment[Any]]
+        // Registry must be None when a custom DataConverter is in use.
+        _ = assertTrue(env.codecRegistry.isEmpty)
+        // Exercising an auto-reg call site with a None registry must succeed — the macro-generated
+        // `None.foreach { r => r.register(...) }` body must compile and be inert at runtime.
+        _ <- ZTestWorkflowEnvironment.newWorker("opt-out-queue") @@
+               ZWorker.addWorkflow[SampleWorkflowImpl].fromClass @@
+               ZWorker.addActivityImplementation(new PromiseActivityImpl(x => x, x => x))
+        // The registry is still empty after the auto-reg sites ran.
+      } yield assertTrue(
+        env.codecRegistry.isEmpty
+      )).provideSomeLayer[Scope](customEnvLayer)
     }
   )
 }
