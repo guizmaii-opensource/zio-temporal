@@ -13,10 +13,9 @@ import zio.temporal.worker._
 import zio.temporal.workflow._
 import zio.test._
 
-/** End-to-end integration coverage for the auto-registration feature. Contrast with [[BaseTemporalSpec]] which
-  * wires every spec with the shared [[FixtureCodecRegistry.all]] — here we intentionally wire clients with an
-  * empty `CodecRegistry` to verify that the auto-reg call sites fill it in correctly at worker / stub-creation
-  * time.
+/** End-to-end integration coverage for the auto-registration feature. Contrast with [[BaseTemporalSpec]] which wires
+  * every spec with the shared [[FixtureCodecRegistry.all]] — here we intentionally wire clients with an empty
+  * `CodecRegistry` to verify that the auto-reg call sites fill it in correctly at worker / stub-creation time.
   */
 object AutoRegistrationSpec extends ZIOSpecDefault {
   override val bootstrap: ZLayer[Any, Any, TestEnvironment] =
@@ -98,8 +97,7 @@ object AutoRegistrationSpec extends ZIOSpecDefault {
       // withDataConverter clears codecRegistry to None, and auto-reg must then be a silent no-op.
       val rawConverter = DefaultDataConverter.STANDARD_INSTANCE
       val options      =
-        ZWorkflowClientOptions
-          .make @@ ZWorkflowClientOptions.withDataConverter(rawConverter)
+        ZWorkflowClientOptions.make @@ ZWorkflowClientOptions.withDataConverter(rawConverter)
 
       val customEnvLayer: ULayer[ZTestWorkflowEnvironment[Any]] =
         ZLayer.make[ZTestWorkflowEnvironment[Any]](
