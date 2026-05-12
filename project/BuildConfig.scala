@@ -84,7 +84,7 @@ trait Dependencies {
     val testFrameworks = Seq(new TestFramework("zio.test.sbt.ZTestFramework"))
 
     // only for examples
-    val cli = "dev.zio" %% "zio-cli" % "0.8.0"
+    val cli = "dev.zio" %% "zio-cli" % "0.8.1"
   }
 
   object Scalapb {
