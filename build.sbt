@@ -4,7 +4,7 @@ import scala.collection.Seq
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
-val scala3 = "3.3.7"
+val scala3 = "3.3.8"
 
 ThisBuild / organization  := "com.guizmaii"
 ThisBuild / versionScheme := Some("early-semver")
