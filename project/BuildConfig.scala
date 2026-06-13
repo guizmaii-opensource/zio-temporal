@@ -59,7 +59,7 @@ trait Dependencies {
     val zioPrelude = "1.0.0-RC47"
     val enumeratum = "1.9.0"
     val jackson    = "2.22.0"
-    val otel       = "1.62.0"
+    val otel       = "1.63.0"
   }
 
   object Temporal {
@@ -116,6 +116,6 @@ trait Dependencies {
 
     val otel = Seq(otelApi, otelExporterOtlp, otelTracePropagators, otelOpentracingShim, otelSemvonc)
 
-    val micrometerOtlp = "io.micrometer" % "micrometer-registry-otlp" % "1.16.5"
+    val micrometerOtlp = "io.micrometer" % "micrometer-registry-otlp" % "1.17.0"
   }
 }
