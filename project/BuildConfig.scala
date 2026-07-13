@@ -53,7 +53,7 @@ object BuildConfig extends Dependencies {
 trait Dependencies {
 
   private object versions {
-    val temporal   = "1.35.0"
+    val temporal   = "1.36.1"
     val zio        = "2.1.26"
     val zioLogging = "2.5.3"
     val zioPrelude = "1.0.0-RC47"
@@ -100,7 +100,7 @@ trait Dependencies {
   object Logging {
     val zio      = "dev.zio"       %% "zio-logging"       % versions.zioLogging
     val zioSlf4j = "dev.zio"       %% "zio-logging-slf4j" % versions.zioLogging
-    val logback  = "ch.qos.logback" % "logback-classic"   % "1.5.35"
+    val logback  = "ch.qos.logback" % "logback-classic"   % "1.5.37"
   }
 
   object Testing {
