@@ -59,7 +59,7 @@ trait Dependencies {
     val zioPrelude = "1.0.0-RC47"
     val enumeratum = "1.9.0"
     val jackson    = "2.22.1"
-    val otel       = "1.63.0"
+    val otel       = "1.64.0"
   }
 
   object Temporal {
@@ -100,7 +100,7 @@ trait Dependencies {
   object Logging {
     val zio      = "dev.zio"       %% "zio-logging"       % versions.zioLogging
     val zioSlf4j = "dev.zio"       %% "zio-logging-slf4j" % versions.zioLogging
-    val logback  = "ch.qos.logback" % "logback-classic"   % "1.5.37"
+    val logback  = "ch.qos.logback" % "logback-classic"   % "1.5.38"
   }
 
   object Testing {
@@ -112,7 +112,7 @@ trait Dependencies {
     val otelExporterOtlp     = "io.opentelemetry"         % "opentelemetry-exporter-otlp"               % versions.otel
     val otelTracePropagators = "io.opentelemetry"         % "opentelemetry-extension-trace-propagators" % versions.otel
     val otelOpentracingShim  = "io.opentelemetry"         % "opentelemetry-opentracing-shim"            % versions.otel
-    val otelSemvonc          = "io.opentelemetry.semconv" % "opentelemetry-semconv"                     % "1.42.0"
+    val otelSemvonc          = "io.opentelemetry.semconv" % "opentelemetry-semconv"                     % "1.43.0"
 
     val otel = Seq(otelApi, otelExporterOtlp, otelTracePropagators, otelOpentracingShim, otelSemvonc)
 
