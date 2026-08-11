@@ -6,9 +6,9 @@ env:
 
 on:
   push:
-    branches: [ master, main ]
+    branches: [ master, main, '0.7' ]
   pull_request:
-    branches: [ master, main ]
+    branches: [ master, main, '0.7' ]
 
 jobs:
   lint:
