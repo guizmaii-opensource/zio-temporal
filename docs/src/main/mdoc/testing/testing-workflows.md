@@ -6,7 +6,7 @@
   <meta name="keywords" content="ZIO Temporal testing workflows, Scala Temporal testing workflows" />
 </head>
 
-Temporal provides with `ZTestWorkflowEnvironment` that allows to run workflows in a local test environment.  
+Temporal provides `ZTestWorkflowEnvironment` that allows to run workflows in a local test environment.  
 General business logic, as well Temporal functionality (such as `timers`, `sagas`, etc.) can be tested locally with the testkit.
 
 Let's start with some basic imports that will be required for the whole demonstration:
@@ -168,7 +168,7 @@ object GreetingWorkflowSpec extends ZIOSpecDefault {
 }
 ```
 **Notes**
-- Like `ZTestActivityEnvironment`, `ZTestWorkflowEnvironment.activityRunOptions[R]` provides with `ZActivityOptions` needed to run ZIO inside activities
+- Like `ZTestActivityEnvironment`, `ZTestWorkflowEnvironment.activityRunOptions[R]` provides `ZActivityOptions` needed to run ZIO inside activities
   - `ZTestWorkflowEnvironment.activityRunOptionsWithZIO[R]` allows building a ZIO accessing `ZActivityRunOptions` (like `ZIO.serviceWithZIO` for ZIO environment)
 - `ZWorker.addActivityImplementation` can be used to provide activity implementations
 
@@ -248,8 +248,8 @@ object PaymentWorkflowSpec extends ZIOSpecDefault {
         // Skip time
         _ <- ZTestWorkflowEnvironment.sleep(10.minutes + 30.seconds)
         // Get the workflow result
-        isFinished <- paymentWorkflow.result[Boolean]
-      } yield assertTrue(!isFinished)
+        paymentConfirmed <- paymentWorkflow.result[Boolean]
+      } yield assertTrue(!paymentConfirmed)
     }
   ).provideSome[Scope](
     ZTestEnvironmentOptions.default,

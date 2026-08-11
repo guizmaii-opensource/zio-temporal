@@ -21,4 +21,4 @@ We generally recommend writing the majority of your tests as integration tests.
 Because the test server supports skipping time, use the test server for both end-to-end and integration tests with Workers.
 
 ## Few notes
-All the test below will use `zio-test` as the test framework. However, you may use any other if it's able to run `ZIO`.
+All the tests below will use `zio-test` as the test framework. However, you may use any other if it's able to run `ZIO`.

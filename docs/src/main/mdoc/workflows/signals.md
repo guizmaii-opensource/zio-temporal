@@ -115,7 +115,7 @@ val startWorkflow = ZIO.serviceWithZIO[ZWorkflowClient] { workflowClient =>
                            .withTaskQueue("payment-queue")
                            .withWorkflowRunTimeout(10.second)
                        )
-   _ <- ZWorkflowStub.execute(
+   _ <- ZWorkflowStub.start(
           paymentWorkflow.proceed(amount = 42, from = "me",  to = "you")
         )
   } yield ()

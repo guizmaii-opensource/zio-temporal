@@ -19,7 +19,7 @@ import scala.reflect.ClassTag
 ```
 
 ## Ensure correct serialization setup
-ZIO-Temporal is build on top of Java SDK and runs on JVM, which brings some limitations, such as [type erasure](https://docs.oracle.com/javase/tutorial/java/generics/erasure.html).  
+ZIO-Temporal is built on top of Java SDK and runs on JVM, which brings some limitations, such as [type erasure](https://docs.oracle.com/javase/tutorial/java/generics/erasure.html).  
 Imagine a workflow interface with unconstrained type parameters:
 
 ```scala mdoc

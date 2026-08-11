@@ -18,7 +18,7 @@ Heartbeats can contain a _details_ field describing the Activity's current progr
 
 ## Example
 
-In this example, we'll implement a record processor that periodically reads records from the storage & commits offsets of processed records. The processor will be able to recover to the latest processed offset in case of a failure. You can fine the full example [here](https://github.com/guizmaii-opensource/zio-temporal/tree/main/examples/src/main/scala/com/example/heartbeatingactivity)
+In this example, we'll implement a record processor that periodically reads records from the storage & commits offsets of processed records. The processor will be able to recover to the latest processed offset in case of a failure. You can find the full example [here](https://github.com/guizmaii-opensource/zio-temporal/tree/main/examples/src/main/scala/com/example/heartbeatingactivity)
 
 Let's start with some basic definitions that will be required for the whole demonstration:
 ```scala mdoc:silent

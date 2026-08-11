@@ -9,7 +9,7 @@
 ## Introduction
 
 Workflows are the basic building blocks in Temporal.  
-A Workflow Definition contains the actual business logic. It's determenistic, those free from any side effects.  
+A Workflow Definition contains the actual business logic. It's deterministic, thus free from any side effects.  
 Refer to [Temporal documentation](https://docs.temporal.io/workflows) for more information regarding the concept of
 workflows.
 

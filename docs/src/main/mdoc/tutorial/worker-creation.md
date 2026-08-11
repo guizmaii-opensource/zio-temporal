@@ -172,7 +172,7 @@ There is a problem with running this program because, when run, the `ZWorkerFact
 
 ```scala
 for
-  worker <- ZWorkerFactory.newWorker(taskQueue) @@ ZWorker.addWorkflow[HelloWorldImpl].fromClass
+  worker <- ZWorkerFactory.newWorker("my-task-queue") @@ ZWorker.addWorkflow[HelloWorldImpl].fromClass
   _      <- ZWorkerFactory.setup
   _      <- ZIO.sleep(Duration.Infinity)
 yield ()
@@ -185,7 +185,7 @@ Now the program contents are complete and we have only to run it with its requir
 ```scala
 val program =
   for
-    worker <- ZWorkerFactory.newWorker(taskQueue) @@ ZWorker.addWorkflow[HelloWorldImpl].fromClass
+    worker <- ZWorkerFactory.newWorker("my-task-queue") @@ ZWorker.addWorkflow[HelloWorldImpl].fromClass
     _      <- ZWorkerFactory.setup
     _      <- ZIO.sleep(Duration.Infinity)
   yield ()
@@ -320,6 +320,6 @@ Every Workflow Execution must have a unique Workflow ID.  The form can generate 
 
 When you have completed the form, submit it by clicking the "Start Workflow" button in the lower right of the window.  If you have done all correctly you will be taken to a list of all Workflows (which may be only this one).  Clicking on the Workflow ID will bring you to a detail page for the Workflow Execution you just started.  Expand the "Input and Results" section and you will see the text you entered into the form and the output result from executing the Workflow.
 
-![_Input and_Results_](img/input-and-results.png)
+![_Input and Results_](img/input-and-results.png)
 
 This demonstration shows you that you have sent an input argument through the Temporal server, causing the Workflow you defined to be applied to that argument by a Worker running in the Scala application, and you have seen that the result has been returned back to the Temporal server.  Of course in a production application you may not be starting Workflows using the management GUI, so the next section of this tutorial will teach you how to start Workflow Executions programmatically in Scala.

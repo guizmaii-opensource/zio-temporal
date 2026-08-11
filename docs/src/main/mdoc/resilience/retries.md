@@ -45,7 +45,6 @@ When declaring activities inside the workflow implementation, it's possible to p
 They are provided using `ZRetryOptions`:
 ```scala mdoc
 val retryOptions = ZRetryOptions.default
-  .withMaximumAttempts(3)
   .withInitialInterval(300.millis)
   .withMaximumAttempts(5)
   .withBackoffCoefficient(1.2)
@@ -57,7 +56,7 @@ Important notes:
 - `withRetryOptions` allows to specify the retry policy for an activity execution
 - `withMaximumAttempts` limits the number of retries
 - `withInitialInterval`, `withMaximumAttempts` and `withBackoffCoefficient` adds a backoff
-- `withDoNotRetry` allows to specify what errors must not be retries. A helper `nameOf` method is used to get the full type name of the provided Exception
+- `withDoNotRetry` allows to specify what errors must not be retried. A helper `nameOf` method is used to get the full type name of the provided Exception
 
 You can then specify retry options into `ZActivityOptions` when creating the Activity Stub:
 
@@ -76,7 +75,7 @@ class BookingWorkflowImpl extends BookingWorkflow {
 ```
 
 ## Workflow retries
-Adding retry policies for workflows is pretty the same as for activities:
+Adding retry policies for workflows is pretty much the same as for activities:
 
 ```scala mdoc:silent
 ZIO.serviceWithZIO[ZWorkflowClient] { workflowClient =>

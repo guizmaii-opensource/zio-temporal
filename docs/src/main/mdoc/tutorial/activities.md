@@ -118,7 +118,7 @@ Our main program can execute a Workflow as we have already done, but it must not
 ```scala
 class AnswerQuestionImpl extends AnswerQuestion:
   override def apply(question: Question) =
-    val answer = ZActivityStub.execute(activity.getAnswer())
+    val answer = ZActivityStub.execute(activities.getAnswer())
     s"Hello ${question.name}. You asked, “${question.text}” The answer is $answer."
     
 class QuestionActivityImpl extends QuestionActivity:
