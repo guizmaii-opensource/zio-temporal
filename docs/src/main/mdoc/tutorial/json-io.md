@@ -8,7 +8,7 @@ Recall the Workflow method we declared for `HelloWorld` has a single `String` pa
 def apply(name: String): String
 ```
 
-and we invoked it with a single `String` argument`
+and we invoked it with a single `String` argument
 
 ```scala
 ZWorkflowStub.execute(workflowStub("Alice"))

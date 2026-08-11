@@ -71,7 +71,7 @@ It will print the generated code. For example:
 
 For some reason, workflow-related methods (`@signalMethod`, `@queryMethod`) are registered as is in
 Temporal,  
-while activity method are registered capitalized.
+while activity methods are registered capitalized.
 
 For instance, having the following activity interface:
 

@@ -100,7 +100,7 @@ class TripBookingWorkflowImpl extends TripBookingWorkflow {
 
   override def bookTrip(name: String): Unit = {
     val bookingSaga: ZSaga[Unit] = for {
-      // Option 1: attempt and add compensation later
+      // Attempt the action, then register its compensation
       carReservationID <- ZSaga.attempt(
                             ZActivityStub.execute(
                               activities.reserveCar(name)
@@ -116,14 +116,14 @@ class TripBookingWorkflowImpl extends TripBookingWorkflow {
                                 activities.bookHotel(name)
                               )
                             )
-      // Option 2: make a ZSaga with main action and compensation
-      flightReservationID <- ZSaga.make(
-                               exec = ZActivityStub.execute(
+      _ <- ZSaga.compensation(
+             ZActivityStub.execute(
+               activities.cancelHotel(hotelReservationID, name)
+             )
+           )
+      flightReservationID <- ZSaga.attempt(
+                               ZActivityStub.execute(
                                  activities.bookFlight(name)
-                               )
-                             )(
-                               compensate = ZActivityStub.execute(
-                                 activities.cancelHotel(hotelReservationID, name)
                                )
                              )
       _ <- ZSaga.compensation(
@@ -144,7 +144,7 @@ class TripBookingWorkflowImpl extends TripBookingWorkflow {
 **(1)** There is multiple ways to create a `ZSaga`:
 - `ZSaga.attempt` wraps code that may fail
 - `ZSaga.compensation` adds compensation action
-- `ZSaga.make` is basically `attempt` followed by a `compensation`
+- `ZSaga.make` is basically `attempt` followed by a `compensation`. Since its compensation doesn't have access to the value produced by the action, it's best suited for compensations that don't depend on that value; otherwise, prefer `ZSaga.attempt` followed by a separate `ZSaga.compensation` (as shown above), which can reference the produced value.
 
 **(2)** It's also possible to create `ZSaga`s from values:
 - `ZSaga.succeed` wraps an existing value

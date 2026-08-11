@@ -33,7 +33,7 @@ trait NotificationsSenderWorkflow {
 Few notes here:
 - By default, the Workflow Type name is the workflow **interface's simple name**.
   - The name is taken from the trait annotated with `@workflowInterface`
-- **Do not specify** an alternative name in `@workflwoMethod`. It's not possible to override the name later 
+- **Do not specify** an alternative name in `@workflowMethod`. It's not possible to override the name later 
 
 Then, an additional step is required for this kind of polymorphism to work.  
 We must define more "concrete" workflow interfaces:

@@ -10,11 +10,11 @@
 
 See the list of issues on GitHub and pick one! Or report your own.
 
-If you are having doubts on why or how something works, don't hesitate to ask a question on Discord or via GitHub.  
+If you are having doubts on why or how something works, don't hesitate to ask a question via [GitHub Issues](https://github.com/guizmaii-opensource/zio-temporal/issues).  
 This probably means that the documentation, ScalaDocs or code is unclear and could be improved for the benefit of all.  
 
 ## Testing locally
-Tests doesn't require any environment installed, so simply run:
+Tests don't require any environment installed, so simply run:
 ```shell
 sbt test
 ```
