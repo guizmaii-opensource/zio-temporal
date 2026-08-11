@@ -36,7 +36,7 @@ object Main extends ZIOAppDefault {
                                  * }}}
                                  */
                                Map(
-                                 "Vendor"        -> ZSearchAttribute.keyword("vhonta.dev"),
+                                 "Vendor"        -> ZSearchAttribute.keyword("zio-temporal"),
                                  "VendorVersion" -> ZSearchAttribute("1.0.0")
                                )
                              )

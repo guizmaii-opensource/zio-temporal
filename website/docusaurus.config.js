@@ -1,8 +1,9 @@
 const siteConfig = {
   title: 'ZIO Temporal',
   tagline: 'Build invincible apps with ZIO and Temporal',
-  url: 'https://zio-temporal.vhonta.dev',
-  baseUrl: '/',
+  url: 'https://guizmaii-opensource.github.io',
+  baseUrl: '/zio-temporal/',
+  organizationName: 'guizmaii-opensource',
   projectName: 'zio-temporal',
   favicon: 'img/favicon/favicon.ico',
   trailingSlash: false,
@@ -32,9 +33,8 @@ const siteConfig = {
       ],
     },
     metadata: [
-      {name: "author", content:"Vitalii Honta"},
-      {name: 'twitter:card', content: 'summary'},
-      {name: 'twitter:creator', content: '@HontaVitalii'}
+      {name: "author", content: "guizmaii-opensource"},
+      {name: 'twitter:card', content: 'summary'}
     ],
     announcementBar: {
       id: 'support_ukraine',
@@ -55,11 +55,11 @@ const siteConfig = {
         { to: 'docs/core/overview', label: 'Documentation', position: 'right' },
         {
            type: 'html',
-           value: '<a class="navbar__item navbar__link" rel="nofollow" href="/api/zio/temporal">API Docs</a>',
-           position: 'right' 
+           value: '<a class="navbar__item navbar__link" rel="nofollow" href="/zio-temporal/api/zio/temporal">API Docs</a>',
+           position: 'right'
         },
         {
-          href: 'https://github.com/vitaliihonta/zio-temporal',
+          href: 'https://github.com/guizmaii-opensource/zio-temporal',
           label: 'GitHub',
           position: 'right',
         },
@@ -85,21 +85,13 @@ const siteConfig = {
           title: 'Community & Contacts',
           items: [
             {
-              label: 'Discord',
-              href: 'https://discord.gg/5Vyc2GjXws'
-            },
-            {
-              label: 'Author on Telegram',
-              href: 'https://t.me/vitaliihonta'
-            },
-            {
-              label: "Author's email",
-              href: 'mailto:vitalii.honta@gmail.com'
+              label: 'GitHub Issues',
+              href: 'https://github.com/guizmaii-opensource/zio-temporal/issues'
             }
           ]
         }
       ],
-      copyright: `Copyright © ${new Date().getFullYear()} Vitalii Honta`,
+      copyright: `Copyright © ${new Date().getFullYear()} zio-temporal contributors. Forked from <a href="https://github.com/vitaliihonta/zio-temporal">vitaliihonta/zio-temporal</a>.`,
     }
   },
   markdown: {

@@ -147,7 +147,7 @@ Here, `activities` is an instance of the Activity trait `QuestionActivity` but i
 
 Similar to when we obtained a proxy stub for the Workflow object, `activities` here is also a proxy stub.  Invoking the `getAnswer()` method on `activities` will start the Temporal process by adding to the Temporal Server Task Queue a command to start the `GetAnswer` Activity.  A Worker will dequeue that command and start working on it.  When the Activity completes, the Worker sends the return value back to the Temporal Server, and the Server returns that value to our method invocation as if it had been invoked on an instance of `QuestionActivityImpl`.  The Server also persists this value, so if this Workflow needs to be replayed then the saved value will be used instead of making another network request.  This could happen, for example, if the machine running the Workflow crashes before receiving the result of the Activity.
 
-In an earlier section we saw how to obtain the Workflow proxy stub using `ZWorkflowClient.newWorkflowStub[]()`, specifying the Workflow type and options.  Here, we obtain the Activity proxy stub using [`ZWorkflow.newActivityStub[]()`](https://zio-temporal.vhonta.dev/api/zio/temporal/workflow/ZWorkflow$.html#newActivityStub[A](options:zio.temporal.activity.ZActivityOptions)(implicitevidence$3:scala.reflect.ClassTag[A],implicitevidence$4:zio.temporal.activity.IsActivity[A]):zio.temporal.activity.ZActivityStub.Of[A]).
+In an earlier section we saw how to obtain the Workflow proxy stub using `ZWorkflowClient.newWorkflowStub[]()`, specifying the Workflow type and options.  Here, we obtain the Activity proxy stub using [`ZWorkflow.newActivityStub[]()`](https://guizmaii-opensource.github.io/zio-temporal/api/zio/temporal/workflow/ZWorkflow$.html#newActivityStub[A](options:zio.temporal.activity.ZActivityOptions)(implicitevidence$3:scala.reflect.ClassTag[A],implicitevidence$4:zio.temporal.activity.IsActivity[A]):zio.temporal.activity.ZActivityStub.Of[A]).
 
 ```scala
 val activities = ZWorkflow.newActivityStub[QuestionActivity]:
@@ -158,7 +158,7 @@ In order to acquire an Activity proxy stub, you must configure a timeout value, 
 
 ## Register an Activity
 
-A similarity between Workflows and Activities is that both must be registered with a Worker for that Worker to accept and work on them.  A difference here is that Workflows are registered by type, while Activities are registered by instance value.  We have seen how to register a workflow using the `ZWorker.addWorkflow[]` method.  To register our Activity we will use the [`ZWorker.addActivityImplementation()`](https://zio-temporal.vhonta.dev/api/zio/temporal/worker/ZWorker$.html#addActivityImplementation[Activity%3C:AnyRef](activity:Activity)(implicitevidence$6:zio.temporal.activity.ExtendsActivity[Activity]):zio.temporal.worker.ZWorker.Add[Nothing,Any]) method.
+A similarity between Workflows and Activities is that both must be registered with a Worker for that Worker to accept and work on them.  A difference here is that Workflows are registered by type, while Activities are registered by instance value.  We have seen how to register a workflow using the `ZWorker.addWorkflow[]` method.  To register our Activity we will use the [`ZWorker.addActivityImplementation()`](https://guizmaii-opensource.github.io/zio-temporal/api/zio/temporal/worker/ZWorker$.html#addActivityImplementation[Activity%3C:AnyRef](activity:Activity)(implicitevidence$6:zio.temporal.activity.ExtendsActivity[Activity]):zio.temporal.worker.ZWorker.Add[Nothing,Any]) method.
 
 When registering a Workflow, the `addWorkflow[]` method takes a type parameter: the type of the Workflow being registered.  But when registering an Activity, the `addActivityImplementation()` method takes a value parameter, and that value is an instance of the Activity implementation class.  For example, here our Activity implementation class is `QuestionActivityImpl`, so we can use the following to register the Activity with a Worker.
 
@@ -202,7 +202,7 @@ This is everything needed for our working ZIO-Temporal program to answer importa
 scalaVersion := "3.5.1"
 
 libraryDependencies ++= Seq(
-  "dev.vhonta" %% "zio-temporal-core" % "0.6.1",
+  "@ORGANIZATION@" %% "zio-temporal-core" % "@VERSION@",
   "dev.zio"    %% "zio-json"          % "0.7.3",
   "org.slf4j"   % "slf4j-nop"         % "2.0.16",
 )

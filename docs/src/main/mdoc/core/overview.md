@@ -16,7 +16,7 @@ Video materials:
 Example projects using `zio-temporal`:
 - [Functional Scala 2022: Cryptocurrency exchange](https://github.com/vitaliihonta/zio-temporal-samples/tree/main/cryptostock)
 - [Content Sync](https://github.com/vitaliihonta/zio-temporal-samples/tree/main/content-sync)
-- [Simple examples](https://github.com/vitaliihonta/zio-temporal/tree/main/examples/src/main)
+- [Simple examples](https://github.com/guizmaii-opensource/zio-temporal/tree/main/examples/src/main)
 
 ## Installation
 

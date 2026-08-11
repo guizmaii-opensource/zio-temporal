@@ -86,7 +86,7 @@ val workflowServiceStubsOptionsLayer =
 ```
 
 For more details,
-find [Monitoring samples](https://github.com/vitaliihonta/zio-temporal/tree/main/examples/src/main/scala/com/example).
+find [Monitoring samples](https://github.com/guizmaii-opensource/zio-temporal/tree/main/examples/src/main/scala/com/example).
 For details on configuring a OTLP scrape endpoint with Micrometer, see
 Micrometer [OTLP doc](https://micrometer.io/docs/registry/otlp)
 
