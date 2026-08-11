@@ -11,9 +11,9 @@ import scala.reflect.ClassTag
   * The important members here are [[scalapbMessageZTemporalCodec]] and [[scalapbSealedOneofZTemporalCodec]], which
   * auto-derive a [[ZTemporalCodec]] for any ScalaPB-generated [[scalapb.GeneratedMessage]] or
   * [[scalapb.GeneratedSealedOneof]]. The zio-json `JsonEncoder`/`JsonDecoder` carried by those codecs are deliberate
-  * stubs that throw if invoked — at runtime, [[ScalapbPayloadConverter]] handles protobuf types before
-  * [[zio.temporal.json.ZioJsonPayloadConverter]] is reached in [[ProtobufDataConverter]]'s chain, so the stubs are
-  * never called.
+  * stubs that must never actually run — the encoder throws, the decoder fails with a `Left(msg)` decode error — at
+  * runtime, [[ScalapbPayloadConverter]] handles protobuf types before [[zio.temporal.json.ZioJsonPayloadConverter]] is
+  * reached in [[ProtobufDataConverter]]'s chain, so the stubs are never called.
   *
   * '''Scope warning — the `JsonEncoder`/`JsonDecoder` bridges are deliberately not provided at the package-object
   * level.''' They live in [[ScalapbJsonImplicits]] and must be imported explicitly, because making them globally

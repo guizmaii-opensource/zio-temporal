@@ -11,9 +11,10 @@ import scala.reflect.ClassTag
   * — e.g. `JsonEncoder[Either[MyProtobufMsg, String]]`. Importing this object brings `JsonEncoder[A <:
   * GeneratedMessage]` and `JsonDecoder[A <: GeneratedMessage]` (and the sealed-oneof variants) into implicit scope.
   *
-  * ''Do not import globally.'' These encoders/decoders are throwing stubs — they are meant to live inside a
-  * `ZTemporalCodec` whose actual serialization is handled by [[ScalapbPayloadConverter]] earlier in the chain. If they
-  * leak into the user's wider zio-json usage (logs, HTTP handlers, etc.) protobuf serialization will throw at runtime.
+  * ''Do not import globally.'' These encoders/decoders are stubs that must never actually run — the encoder throws, the
+  * decoder fails with a `Left(msg)` decode error — they are meant to live inside a `ZTemporalCodec` whose actual
+  * serialization is handled by [[ScalapbPayloadConverter]] earlier in the chain. If they leak into the user's wider
+  * zio-json usage (logs, HTTP handlers, etc.) protobuf serialization will fail at runtime.
   *
   * Import it locally where needed:
   *

@@ -182,10 +182,12 @@ object ProtobufParameterizedWorkflowMain extends ZIOAppDefault {
               // `addInterface` walk when it tries to summon a codec for the intermediate `NonEmpty` marker.
               // Register the top-level oneof codecs explicitly — `encoderForClass` walks the supertype chain
               // at runtime so any concrete `ChildWorkflowSodaInput` / `WorkflowJuiceInput` value dispatches
-              // through the registered parent codec.
+              // through the registered parent codec. `parentTask`/`childTask` return `Unit`, which isn't a
+              // protobuf type, so it's handled by the trailing zio-json fallback and needs its own registration.
               new CodecRegistry()
                 .register(ZTemporalCodec[ChildWorkflowInput])
                 .register(ZTemporalCodec[WorkflowInput])
+                .register(ZTemporalCodec[Unit])
             )
           ),
         ZWorkerFactoryOptions.make
