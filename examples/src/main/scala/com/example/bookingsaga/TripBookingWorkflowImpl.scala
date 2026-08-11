@@ -17,7 +17,7 @@ class TripBookingWorkflowImpl extends TripBookingWorkflow {
 
   override def bookTrip(name: String): Unit = {
     val bookingSaga = for {
-      // Option 1: attempt and add compensation later
+      // Attempt the action, then register its compensation
       carReservationID <- ZSaga.attempt(
                             ZActivityStub.execute(
                               activities.reserveCar(name)
@@ -33,14 +33,14 @@ class TripBookingWorkflowImpl extends TripBookingWorkflow {
                                 activities.bookHotel(name)
                               )
                             )
-      // Option 2: make a ZSaga with main action and compensation
-      flightReservationID <- ZSaga.make(
-                               exec = ZActivityStub.execute(
+      _ <- ZSaga.compensation(
+             ZActivityStub.execute(
+               activities.cancelHotel(hotelReservationID, name)
+             )
+           )
+      flightReservationID <- ZSaga.attempt(
+                               ZActivityStub.execute(
                                  activities.bookFlight(name)
-                               )
-                             )(
-                               compensate = ZActivityStub.execute(
-                                 activities.cancelHotel(hotelReservationID, name)
                                )
                              )
       _ <- ZSaga.compensation(

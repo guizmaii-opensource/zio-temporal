@@ -6,7 +6,7 @@
   <meta name="keywords" content="ZIO Temporal testing activities, Scala Temporal testing activities" />
 </head>
 
-Temporal provides with `ZTestActivityEnvironment` that allows to run activities in a local test environment.  
+Temporal provides `ZTestActivityEnvironment` that allows to run activities in a local test environment.  
 General business logic, as well Temporal functionality (such as `Activity heartbeats`) can be tested locally with the testkit.  
 
 Let's start with some basic imports that will be required for the whole demonstration:
@@ -67,7 +67,7 @@ object EchoActivitySpec extends ZIOSpecDefault {
 
 **Notes**
 - `ZTestActivityEnvironment` companion object has a plenty of methods to configure the test environment
-  - `ZTestActivityEnvironment.activityRunOptions[R]` provides with `ZActivityRunOptions` needed to run ZIO inside activities
+  - `ZTestActivityEnvironment.activityRunOptions[R]` provides `ZActivityRunOptions` needed to run ZIO inside activities
    - `ZTestActivityEnvironment.activityRunOptionsWithZIO[R]` allows building a ZIO accessing `ZActivityRunOptions` (like `ZIO.serviceWithZIO` for ZIO environment)
   - `ZTestActivityEnvironment.addActivityImplementation` populates the test environment with Activity implementations
   - `ZTestActivityEnvironment.newActivityStub` returns a stub  for testing
