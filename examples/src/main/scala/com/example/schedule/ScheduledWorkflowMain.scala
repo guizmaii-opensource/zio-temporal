@@ -2,6 +2,7 @@ package com.example.schedule
 
 import zio._
 import zio.logging.backend.SLF4J
+import zio.temporal.json.CodecRegistry
 import zio.temporal.workflow._
 import zio.temporal.schedules._
 import zio.temporal.worker.{ZWorker, ZWorkerFactory, ZWorkerFactoryOptions}
@@ -133,7 +134,11 @@ object ScheduledWorkflowMain extends ZIOAppDefault {
 
     program.provideSome[Scope](
       ZWorkflowServiceStubsOptions.make,
-      ZWorkflowClientOptions.make,
+      ZWorkflowClientOptions.make @@
+        ZWorkflowClientOptions.withCodecRegistry(
+          new CodecRegistry()
+            .addInterface[HelloWorkflowWithTime]
+        ),
       ZWorkerFactoryOptions.make,
       ZWorkflowClient.make,
       ZWorkflowServiceStubs.make,

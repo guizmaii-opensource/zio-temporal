@@ -4,6 +4,7 @@ import zio._
 import zio.logging.backend.SLF4J
 import zio.temporal._
 import zio.temporal.failure.{ApplicationFailure, ChildWorkflowFailure}
+import zio.temporal.json.CodecRegistry
 import zio.temporal.worker.{ZWorker, ZWorkerFactory, ZWorkerFactoryOptions}
 import zio.temporal.workflow._
 
@@ -136,7 +137,13 @@ object PolymorphicChildWorkflowsMain extends ZIOAppDefault {
         ZWorkerFactory.make,
         // options
         ZWorkflowServiceStubsOptions.make,
-        ZWorkflowClientOptions.make,
+        ZWorkflowClientOptions.make @@
+          ZWorkflowClientOptions.withCodecRegistry(
+            new CodecRegistry()
+              .addInterface[NotificationChildBasedWorkflow]
+              .addInterface[SmsNotificationsSenderWorkflow]
+              .addInterface[PushNotificationsSenderWorkflow]
+          ),
         ZWorkerFactoryOptions.make
       )
   }

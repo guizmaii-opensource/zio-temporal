@@ -3,6 +3,7 @@ package com.example.misc
 import zio._
 import zio.logging.backend.SLF4J
 import zio.temporal.ZWorkflowExecutionMetadata
+import zio.temporal.json.CodecRegistry
 import zio.temporal.workflow._
 
 object WorkflowExecutionsMain extends ZIOAppDefault {
@@ -26,7 +27,12 @@ object WorkflowExecutionsMain extends ZIOAppDefault {
 
     program.provideSome[Scope](
       ZWorkflowServiceStubsOptions.make,
-      ZWorkflowClientOptions.make,
+      ZWorkflowClientOptions.make @@
+        ZWorkflowClientOptions.withCodecRegistry(
+          new CodecRegistry()
+            .addInterface[EitherWorkflow]
+            .addInterface[EitherActivity]
+        ),
       ZWorkflowClient.make,
       ZWorkflowServiceStubs.make
     )

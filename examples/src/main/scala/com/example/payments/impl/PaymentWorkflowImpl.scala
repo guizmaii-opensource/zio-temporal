@@ -9,6 +9,7 @@ import zio.temporal.state._
 import zio.temporal.activity.{ZActivityOptions, ZActivityStub}
 import org.slf4j.MDC
 import zio.temporal.failure.{ActivityFailure, ApplicationFailure}
+import zio.temporal.protobuf.scalapbMessageZTemporalCodec
 
 import scala.util.control.NoStackTrace
 

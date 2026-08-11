@@ -2,6 +2,7 @@ package com.example.bookingsaga
 
 import zio._
 import zio.temporal._
+import zio.temporal.json.CodecRegistry
 import zio.temporal.worker._
 import zio.temporal.activity._
 import zio.temporal.workflow._
@@ -53,7 +54,12 @@ object TripBookingSaga extends ZIOAppDefault {
 
     program.provideSome[Scope](
       ZWorkflowServiceStubsOptions.make,
-      ZWorkflowClientOptions.make,
+      ZWorkflowClientOptions.make @@
+        ZWorkflowClientOptions.withCodecRegistry(
+          new CodecRegistry()
+            .addInterface[TripBookingWorkflow]
+            .addInterface[TripBookingActivities]
+        ),
       ZWorkerFactoryOptions.make,
       ZActivityRunOptions.default,
       // Activity

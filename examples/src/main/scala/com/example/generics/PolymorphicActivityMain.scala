@@ -5,6 +5,7 @@ import zio.logging.backend.SLF4J
 import zio.temporal._
 import zio.temporal.activity.{ZActivity, ZActivityOptions, ZActivityRunOptions, ZActivityStub}
 import zio.temporal.failure.{ActivityFailure, ApplicationFailure}
+import zio.temporal.json.CodecRegistry
 import zio.temporal.worker.{ZWorker, ZWorkerFactory, ZWorkerFactoryOptions}
 import zio.temporal.workflow._
 
@@ -153,7 +154,13 @@ object PolymorphicActivityMain extends ZIOAppDefault {
         SmsNotificationsSenderActivityImpl.make,
         // options
         ZWorkflowServiceStubsOptions.make,
-        ZWorkflowClientOptions.make,
+        ZWorkflowClientOptions.make @@
+          ZWorkflowClientOptions.withCodecRegistry(
+            new CodecRegistry()
+              .addInterface[NotificationActivityBasedWorkflow]
+              .addInterface[PushNotificationsSenderActivity]
+              .addInterface[SmsNotificationsSenderActivity]
+          ),
         ZWorkerFactoryOptions.make,
         ZActivityRunOptions.default
       )

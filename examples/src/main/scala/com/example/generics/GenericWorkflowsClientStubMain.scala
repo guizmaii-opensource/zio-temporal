@@ -3,6 +3,7 @@ package com.example.generics
 import zio._
 import zio.logging.backend.SLF4J
 import zio.temporal._
+import zio.temporal.json.CodecRegistry
 import zio.temporal.worker.{ZWorker, ZWorkerFactory, ZWorkerFactoryOptions}
 import zio.temporal.workflow._
 
@@ -76,7 +77,12 @@ object GenericWorkflowsClientStubMain extends ZIOAppDefault {
         ZWorkerFactory.make,
         // options
         ZWorkflowServiceStubsOptions.make,
-        ZWorkflowClientOptions.make,
+        ZWorkflowClientOptions.make @@
+          ZWorkflowClientOptions.withCodecRegistry(
+            new CodecRegistry()
+              .addInterface[WorkflowFoo]
+              .addInterface[WorkflowBar]
+          ),
         ZWorkerFactoryOptions.make
       )
   }

@@ -1,23 +1,25 @@
 package zio.temporal.protobuf
 
 import io.temporal.common.converter._
+import zio.temporal.json.{CodecRegistry, ZioJsonPayloadConverter}
 
 object ProtobufDataConverter {
 
-  /** Creates data converted supporting given protobuf generated types
-    * @return
-    *   a [[DataConverter]] supporting given protobuf types
+  /** Creates a [[DataConverter]] supporting user-defined protobuf generated types plus a zio-json fallback for
+    * primitive and case-class-shaped payloads.
+    *
+    * @param registry
+    *   the registry used by the trailing [[ZioJsonPayloadConverter]]. Typically populated by zio-temporal's
+    *   client/worker registration macros.
     */
-  def make(): DataConverter =
+  def make(registry: CodecRegistry): DataConverter =
     new DefaultDataConverter(
       // order matters!
-      Seq(
-        new NullPayloadConverter(),
-        new ByteArrayPayloadConverter(),
-        new ProtobufJsonPayloadConverter(),
-        new ScalapbPayloadConverter(),
-        new JacksonJsonPayloadConverter() // falling back to jackson for primitive types
-      ): _*
+      new NullPayloadConverter(),
+      new ByteArrayPayloadConverter(),
+      new ProtobufJsonPayloadConverter(),
+      new ScalapbPayloadConverter(),
+      new ZioJsonPayloadConverter(registry) // zio-json fallback for non-protobuf types (primitives, case classes)
     )
 
 }

@@ -101,7 +101,7 @@ object WorkerSpec extends BaseTemporalSpec {
                   )
       } yield assertTrue(result == "Echoed Vitalii, list=2")
     }.provideSome[Scope](
-      ZTestWorkflowEnvironment.makeDefault[Any],
+      workflowEnvLayer,
       ZLayer.fromZIO(ZTestWorkflowEnvironment.activityRunOptions[Any]),
       ReporterService.make
     ) @@ TestAspect.withLiveClock,
@@ -133,7 +133,7 @@ object WorkerSpec extends BaseTemporalSpec {
                   )
       } yield assertTrue(result == "Echoed Vitalii, list=2")
     }.provideSome[Scope](
-      ZTestWorkflowEnvironment.makeDefault[Any],
+      workflowEnvLayer,
       ZLayer.fromZIO(ZTestWorkflowEnvironment.activityRunOptions[Any]),
       ReporterService.make
     ) @@ TestAspect.withLiveClock

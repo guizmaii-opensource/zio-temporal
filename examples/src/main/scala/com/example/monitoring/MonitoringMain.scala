@@ -20,6 +20,7 @@ import zio._
 import zio.logging.backend.SLF4J
 import zio.temporal._
 import zio.temporal.activity.ZActivityRunOptions
+import zio.temporal.json.CodecRegistry
 import zio.temporal.worker._
 import zio.temporal.workflow._
 
@@ -97,7 +98,12 @@ object MonitoringMain extends ZIOAppDefault {
         ZWorkflowServiceStubsOptions.make @@
           ZWorkflowServiceStubsOptions.withMetricsScope(metricsScope),
         ZWorkflowClientOptions.make @@
-          ZWorkflowClientOptions.withInterceptors(otlpClientInterceptor),
+          ZWorkflowClientOptions.withInterceptors(otlpClientInterceptor) @@
+          ZWorkflowClientOptions.withCodecRegistry(
+            new CodecRegistry()
+              .addInterface[SampleWorkflow]
+              .addInterface[SampleActivities]
+          ),
         ZWorkerFactoryOptions.make @@
           ZWorkerFactoryOptions.withWorkerInterceptors(otlpWorkerInterceptor),
         ZWorkflowClient.make,

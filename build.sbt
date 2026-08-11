@@ -33,7 +33,7 @@ val publishSettings = Seq(
 )
 
 lazy val coverageSettings = Seq(
-  coverageExcludedPackages := "com\\.example\\..*;.*\\.JavaTypeTag;.*\\.JavaTypeTag\\..*;.*\\.TypeIsSpecified;" +
+  coverageExcludedPackages := "com\\.example\\..*;.*\\.TypeIsSpecified;" +
     "zio\\.temporal\\.internal\\.*Macro*;" +
     "zio\\.temporal\\.activity\\.ZLocalActivityStubBuilder*;" +
     "zio\\.temporal\\.activity\\.ZLocalStubBuilder*;" +

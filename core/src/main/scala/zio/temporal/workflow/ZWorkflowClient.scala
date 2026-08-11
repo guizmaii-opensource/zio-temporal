@@ -213,21 +213,49 @@ final class ZWorkflowClient private[zio] (val toJava: WorkflowClient) {
 
 object ZWorkflowClient {
 
-  /** Create [[ZWorkflowClient]] instance
+  /** Create [[ZWorkflowClient]] instance.
+    *
+    * Fail-fast: when the default zio-json data converter is in use (i.e. `ZWorkflowClientOptions.codecRegistry` is
+    * `Some`), the registry is verified to be non-empty. An empty registry guarantees that every workflow/activity call
+    * will fail at runtime with `"No ZTemporalCodec registered…"` — almost always because the caller forgot to chain
+    * `@@ ZWorkflowClientOptions.withCodecRegistry(...).addInterface[…]`. Failing at client construction gives a precise
+    * error pointing at the setup code instead.
+    *
     * @see
     *   [[WorkflowClient]]
     */
   val make: URLayer[ZWorkflowServiceStubs with ZWorkflowClientOptions, ZWorkflowClient] =
     ZLayer.fromZIO {
       ZIO.environmentWithZIO[ZWorkflowServiceStubs with ZWorkflowClientOptions] { environment =>
-        ZIO.succeedBlocking {
-          new ZWorkflowClient(
-            WorkflowClient.newInstance(
-              environment.get[ZWorkflowServiceStubs].toJava,
-              environment.get[ZWorkflowClientOptions].toJava
+        val options            = environment.get[ZWorkflowClientOptions]
+        val emptyRegistryCheck = options.codecRegistry match {
+          case Some(registry) if registry.size == 0 =>
+            ZIO.die(
+              new IllegalStateException(
+                "ZWorkflowClient was built with an empty CodecRegistry — the default zio-json data converter " +
+                  "has no codecs registered, so every workflow/activity call will fail at runtime with " +
+                  "`No ZTemporalCodec registered for runtime class …`.\n" +
+                  "Register your workflow and activity interfaces at client construction:\n\n" +
+                  "    ZWorkflowClientOptions.make @@\n" +
+                  "      ZWorkflowClientOptions.withCodecRegistry(\n" +
+                  "        new CodecRegistry()\n" +
+                  "          .addInterface[YourWorkflow]\n" +
+                  "          .addInterface[YourActivity]\n" +
+                  "      )\n\n" +
+                  "Or supply a custom DataConverter via `.withDataConverter(...)` to opt out of this check."
+              )
             )
-          )
+          case _ => ZIO.unit
         }
+        emptyRegistryCheck *>
+          ZIO.succeedBlocking {
+            new ZWorkflowClient(
+              WorkflowClient.newInstance(
+                environment.get[ZWorkflowServiceStubs].toJava,
+                options.toJava
+              )
+            )
+          }
       }
     }
 }

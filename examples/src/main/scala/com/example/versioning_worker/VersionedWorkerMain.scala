@@ -5,6 +5,7 @@ import zio.{BuildInfo => _, _}
 import zio.cli._
 import zio.logging.backend.SLF4J
 import zio.temporal.activity.ZActivityRunOptions
+import zio.temporal.json.CodecRegistry
 import zio.temporal.worker._
 import zio.temporal.workflow.{
   ZWorkflowClient,
@@ -65,7 +66,12 @@ object VersionedWorkerMain extends ZIOCliDefault {
     program.provideSome[Scope](
       SubscriptionActivitiesImpl.make,
       // temporal
-      ZWorkflowClientOptions.make,
+      ZWorkflowClientOptions.make @@
+        ZWorkflowClientOptions.withCodecRegistry(
+          new CodecRegistry()
+            .addInterface[SubscriptionWorkflow]
+            .addInterface[SubscriptionActivities]
+        ),
       ZWorkerFactoryOptions.make,
       ZWorkflowClient.make,
       ZWorkflowServiceStubs.make,
@@ -100,7 +106,10 @@ object VersionedWorkerMain extends ZIOCliDefault {
 
     program.provide(
       ZWorkflowServiceStubsOptions.make,
-      ZWorkflowClientOptions.make,
+      ZWorkflowClientOptions.make @@
+        ZWorkflowClientOptions.withCodecRegistry(
+          new CodecRegistry().addInterface[SubscriptionWorkflow]
+        ),
       ZWorkflowClient.make,
       ZWorkflowServiceStubs.make
     )

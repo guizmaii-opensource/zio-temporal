@@ -95,10 +95,11 @@ object ZWorkerFactoryOptions extends ConfigurationCompanion[ZWorkerFactoryOption
     makeImpl(List(name) ++ names)
 
   private def makeImpl(additionalPath: List[String]): Layer[Config.Error, ZWorkerFactoryOptions] = {
-    val config = additionalPath match {
-      case Nil          => workerFactoryConfig.nested("zio", "temporal", "zworker_factory")
-      case head :: tail => workerFactoryConfig.nested(head, tail: _*)
-    }
+    val config =
+      additionalPath match {
+        case Nil          => workerFactoryConfig.nested("zio", "temporal", "zworker_factory")
+        case head :: tail => workerFactoryConfig.nested(head, tail: _*)
+      }
     ZLayer.fromZIO {
       ZIO.config(config).map {
         case (

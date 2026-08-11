@@ -7,7 +7,9 @@ import com.google.protobuf.ByteString
 import io.temporal.api.common.v1.Payload
 import io.temporal.common.converter.EncodingKeys
 import org.scalatest.{Assertion, OptionValues}
-import zio.temporal.JavaTypeTag
+import zio.json.JsonCodec
+import zio.temporal.json.ZTemporalCodec
+import zio.temporal.protobuf.ScalapbJsonImplicits.given
 import java.nio.charset.StandardCharsets
 import scala.concurrent.{Future, Await}
 import scala.concurrent.duration._
@@ -15,7 +17,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.jdk.OptionConverters._
 
 object ScalapbPayloadConverterSpec {
-  case class TemporaryClass(value: Int)
+  final case class TemporaryClass(value: Int) derives JsonCodec
 }
 
 class ScalapbPayloadConverterSpec extends AnyWordSpec with Matchers with OptionValues {
@@ -31,7 +33,7 @@ class ScalapbPayloadConverterSpec extends AnyWordSpec with Matchers with OptionV
 
       checkProtobufHeaders(payload)(fullName = TestingMessage.scalaDescriptor.fullName)
 
-      val decoded = converter.fromData(payload, classOf[TestingMessage], JavaTypeTag[TestingMessage].genericType)
+      val decoded = converter.fromData(payload, classOf[TestingMessage], ZTemporalCodec[TestingMessage].genericType)
       decoded shouldEqual msg
     }
 
@@ -41,7 +43,7 @@ class ScalapbPayloadConverterSpec extends AnyWordSpec with Matchers with OptionV
       val payload1 = converter.toData(msg1).toScala.value
       checkProtobufHeaders(payload1)(fullName = TestingOneOfMessage.scalaDescriptor.fullName)
       val decoded1 =
-        converter.fromData(payload1, classOf[TestingOneOfMessage], JavaTypeTag[TestingOneOfMessage].genericType)
+        converter.fromData(payload1, classOf[TestingOneOfMessage], ZTemporalCodec[TestingOneOfMessage].genericType)
       decoded1 shouldEqual msg1
 
       // case 2
@@ -49,7 +51,7 @@ class ScalapbPayloadConverterSpec extends AnyWordSpec with Matchers with OptionV
       val payload2 = converter.toData(msg2).toScala.value
       checkProtobufHeaders(payload2)(fullName = TestingOneOfMessage.scalaDescriptor.fullName)
       val decoded2 =
-        converter.fromData(payload2, classOf[TestingOneOfMessage], JavaTypeTag[TestingOneOfMessage].genericType)
+        converter.fromData(payload2, classOf[TestingOneOfMessage], ZTemporalCodec[TestingOneOfMessage].genericType)
       decoded2 shouldEqual msg2
     }
 
@@ -63,7 +65,7 @@ class ScalapbPayloadConverterSpec extends AnyWordSpec with Matchers with OptionV
         converter.fromData(
           payload1,
           classOf[TestingOneOfSealedMessage],
-          JavaTypeTag[TestingOneOfSealedMessage].genericType
+          ZTemporalCodec[TestingOneOfSealedMessage].genericType
         )
       decoded1 shouldEqual msg1
 
@@ -76,7 +78,7 @@ class ScalapbPayloadConverterSpec extends AnyWordSpec with Matchers with OptionV
         converter.fromData(
           payload2,
           classOf[TestingOneOfSealedMessage],
-          JavaTypeTag[TestingOneOfSealedMessage].genericType
+          ZTemporalCodec[TestingOneOfSealedMessage].genericType
         )
       decoded2 shouldEqual msg2
     }
@@ -88,7 +90,7 @@ class ScalapbPayloadConverterSpec extends AnyWordSpec with Matchers with OptionV
       val decoded1 = converter.fromData(
         payload1,
         classOf[Either[TestingMessage, TestingOneOfSealedMessage]],
-        JavaTypeTag[Either[TestingMessage, TestingOneOfSealedMessage]].genericType
+        ZTemporalCodec[Either[TestingMessage, TestingOneOfSealedMessage]].genericType
       )
       decoded1 shouldEqual msg1
 
@@ -98,7 +100,7 @@ class ScalapbPayloadConverterSpec extends AnyWordSpec with Matchers with OptionV
       val decoded2 = converter.fromData(
         payload2,
         classOf[Either[TestingMessage, TestingOneOfSealedMessage]],
-        JavaTypeTag[Either[TestingMessage, TestingOneOfSealedMessage]].genericType
+        ZTemporalCodec[Either[TestingMessage, TestingOneOfSealedMessage]].genericType
       )
       decoded2 shouldEqual msg2
     }
@@ -110,7 +112,7 @@ class ScalapbPayloadConverterSpec extends AnyWordSpec with Matchers with OptionV
       val decoded1 = converter.fromData(
         payload1,
         classOf[Option[TestingMessage]],
-        JavaTypeTag[Option[TestingMessage]].genericType
+        ZTemporalCodec[Option[TestingMessage]].genericType
       )
       decoded1 shouldEqual msg1
 
@@ -120,7 +122,7 @@ class ScalapbPayloadConverterSpec extends AnyWordSpec with Matchers with OptionV
       val decoded2 = converter.fromData(
         payload2,
         classOf[Option[TestingMessage]],
-        JavaTypeTag[Option[TestingMessage]].genericType
+        ZTemporalCodec[Option[TestingMessage]].genericType
       )
       decoded2 shouldEqual msg2
     }
@@ -132,7 +134,7 @@ class ScalapbPayloadConverterSpec extends AnyWordSpec with Matchers with OptionV
 
       checkProtobufHeaders(payload)(fullName = ZUnit.scalaDescriptor.fullName)
 
-      val decoded = converter.fromData(payload, classOf[Unit], JavaTypeTag[Unit].genericType)
+      val decoded = converter.fromData(payload, classOf[Unit], ZTemporalCodec[Unit].genericType)
       decoded shouldEqual msg
     }
 
@@ -154,7 +156,7 @@ class ScalapbPayloadConverterSpec extends AnyWordSpec with Matchers with OptionV
         converter.fromData(
           payload,
           classOf[TemporaryClass],
-          JavaTypeTag[TemporaryClass].genericType
+          ZTemporalCodec[TemporaryClass].genericType
         )
       }
     }
@@ -164,7 +166,8 @@ class ScalapbPayloadConverterSpec extends AnyWordSpec with Matchers with OptionV
       val firstPayload = converter.toData(firstMessage).toScala.value
 
       def decodeFirst(): Boolean = {
-        val decoded = converter.fromData(firstPayload, classOf[TestingMessage], JavaTypeTag[TestingMessage].genericType)
+        val decoded =
+          converter.fromData(firstPayload, classOf[TestingMessage], ZTemporalCodec[TestingMessage].genericType)
         decoded == firstMessage
       }
 
@@ -175,7 +178,7 @@ class ScalapbPayloadConverterSpec extends AnyWordSpec with Matchers with OptionV
         val decoded = converter.fromData(
           secondPayload,
           classOf[Either[TestingMessage, TestingOneOfSealedMessage]],
-          JavaTypeTag[Either[TestingMessage, TestingOneOfSealedMessage]].genericType
+          ZTemporalCodec[Either[TestingMessage, TestingOneOfSealedMessage]].genericType
         )
         decoded == secondMessage
       }

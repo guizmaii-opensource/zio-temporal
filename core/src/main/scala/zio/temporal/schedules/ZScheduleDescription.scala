@@ -9,7 +9,7 @@ import io.temporal.client.schedules.{
   ScheduleListState
 }
 import org.slf4j.LoggerFactory
-import zio.temporal.JavaTypeTag
+import zio.temporal.json.ZTemporalCodec
 import scala.jdk.CollectionConverters._
 
 /** Description of a schedule. */
@@ -46,8 +46,8 @@ final class ZScheduleDescription private[zio] (val toJava: ScheduleDescription) 
   def searchAttributes: Map[String, List[Any]] =
     toJava.getSearchAttributes.asScala.view.map { case (k, v) => k -> v.asScala.toList }.toMap
 
-  def getMemo[T: JavaTypeTag](key: String): Option[T] =
-    Option(toJava.getMemo[T](key, JavaTypeTag[T].klass, JavaTypeTag[T].genericType))
+  def getMemo[T: ZTemporalCodec](key: String): Option[T] =
+    Option(toJava.getMemo[T](key, ZTemporalCodec[T].klass, ZTemporalCodec[T].genericType))
 
   override def toString: String = {
     s"ZScheduleDescription(" +
@@ -73,8 +73,8 @@ final class ZScheduleListDescription private[zio] (val toJava: ScheduleListDescr
   def searchAttributes: Map[String, Any] =
     toJava.getSearchAttributes.asScala.toMap
 
-  def getMemo[T: JavaTypeTag](key: String): Option[T] =
-    Option(toJava.getMemo[T](key, JavaTypeTag[T].klass, JavaTypeTag[T].genericType))
+  def getMemo[T: ZTemporalCodec](key: String): Option[T] =
+    Option(toJava.getMemo[T](key, ZTemporalCodec[T].klass, ZTemporalCodec[T].genericType))
 
   override def toString: String = {
     s"ZScheduleListDescription(" +
@@ -128,14 +128,15 @@ sealed trait ZScheduleListAction {
 object ZScheduleListAction {
   private lazy val logger = LoggerFactory.getLogger(getClass)
 
-  def apply(value: ScheduleListAction): ZScheduleListAction = value match {
-    case value: ScheduleListActionStartWorkflow => new StartWorkflow(value)
-    case _                                      =>
-      logger.warn(
-        s"Unknown implementation of io.temporal.client.schedules.ScheduleListAction found: class=${value.getClass} value=$value"
-      )
-      Unknown(value)
-  }
+  def apply(value: ScheduleListAction): ZScheduleListAction =
+    value match {
+      case value: ScheduleListActionStartWorkflow => new StartWorkflow(value)
+      case _                                      =>
+        logger.warn(
+          s"Unknown implementation of io.temporal.client.schedules.ScheduleListAction found: class=${value.getClass} value=$value"
+        )
+        Unknown(value)
+    }
 
   /** Action to start a workflow on a listed schedule. */
   final class StartWorkflow(val toJava: ScheduleListActionStartWorkflow) extends ZScheduleListAction {

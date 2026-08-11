@@ -1,6 +1,7 @@
 package zio.temporal.fixture
 
 import zio._
+import zio.json.{DeriveJsonCodec, JsonCodec}
 import zio.temporal._
 import zio.temporal.activity._
 import zio.temporal.state.ZWorkflowState
@@ -9,9 +10,29 @@ import zio.temporal.workflow._
 import java.util.UUID
 import scala.concurrent.TimeoutException
 
-case class Foo(bar: String)
+final case class Foo(bar: String) derives JsonCodec
 
-case class Triple[A, B, C](first: A, second: B, third: C)
+final case class Triple[A, B, C](first: A, second: B, third: C)
+object Triple {
+  // A parameterized derivation can't use the `derives` clause on the class header (the derived givens need their
+  // own type params), so we keep an explicit `given` here — still a one-liner.
+  given [A: JsonCodec, B: JsonCodec, C: JsonCodec]: JsonCodec[Triple[A, B, C]] =
+    DeriveJsonCodec.gen[Triple[A, B, C]]
+}
+
+/** Distinct-name wrapper used alongside [[Triple]] in the same workflow surface.
+  *
+  * `ComplexWorkflow` exposes both `Triple[Foo, Int, String]` (query return) and a deeply nested
+  * `Triple[Option[Int], Set[UUID], Boolean]` (workflow result). The registry can't disambiguate two parameterized
+  * instantiations of the same generic case class from `v.getClass` alone (every `Triple[...]` erases to the same raw
+  * runtime class), so the encode path fails fast on that ambiguity — see `ZioJsonPayloadConverter.encodeValue`. Using a
+  * distinct case class here keeps the two shapes separable at the raw-class level.
+  */
+final case class NestedTriple[A, B, C](first: A, second: B, third: C)
+object NestedTriple {
+  given [A: JsonCodec, B: JsonCodec, C: JsonCodec]: JsonCodec[NestedTriple[A, B, C]] =
+    DeriveJsonCodec.gen[NestedTriple[A, B, C]]
+}
 
 @activityInterface
 trait ComplexTypesActivity {
@@ -25,10 +46,10 @@ trait ComplexTypesActivity {
   def triple: Triple[Foo, Int, String]
 
   @activityMethod
-  def superNested: Either[List[String], Triple[Option[Int], Set[UUID], Boolean]]
+  def superNested: Either[List[String], NestedTriple[Option[Int], Set[UUID], Boolean]]
 }
 
-case class ComplexTypesActivityImpl()(implicit options: ZActivityRunOptions[Any]) extends ComplexTypesActivity {
+final case class ComplexTypesActivityImpl()(implicit options: ZActivityRunOptions[Any]) extends ComplexTypesActivity {
   override def either: Either[String, Int] =
     ZActivity.run {
       ZIO.succeed(Right(42))
@@ -44,9 +65,9 @@ case class ComplexTypesActivityImpl()(implicit options: ZActivityRunOptions[Any]
       ZIO.succeed(Triple(Foo("x"), 1, "y"))
     }
 
-  override def superNested: Either[List[String], Triple[Option[Int], Set[UUID], Boolean]] = {
+  override def superNested: Either[List[String], NestedTriple[Option[Int], Set[UUID], Boolean]] = {
     Right(
-      Triple(
+      NestedTriple(
         first = None,
         second = Set(
           UUID.fromString("8858bba1-3193-4c68-8e0e-5e29caeac210"),
@@ -65,7 +86,7 @@ trait EitherWorkflow {
   def start: Either[String, Int]
 }
 
-case class EitherWorkflowImpl() extends EitherWorkflow {
+final case class EitherWorkflowImpl() extends EitherWorkflow {
   override def start: Either[String, Int] = {
     val stub = ZWorkflow
       .newActivityStub[ComplexTypesActivity](
@@ -79,7 +100,7 @@ case class EitherWorkflowImpl() extends EitherWorkflow {
 @workflowInterface
 trait ComplexWorkflow {
   @workflowMethod
-  def start: Either[List[String], Triple[Option[Int], Set[UUID], Boolean]]
+  def start: Either[List[String], NestedTriple[Option[Int], Set[UUID], Boolean]]
 
   @queryMethod
   def query1: List[Foo]
@@ -101,7 +122,7 @@ class ComplexWorkflowImpl extends ComplexWorkflow {
   private val list    = ZWorkflowState.empty[List[Foo]]
   private val triple  = ZWorkflowState.empty[Triple[Foo, Int, String]]
 
-  override def start: Either[List[String], Triple[Option[Int], Set[UUID], Boolean]] = {
+  override def start: Either[List[String], NestedTriple[Option[Int], Set[UUID], Boolean]] = {
     list := ZActivityStub.execute(
       stub.complexList
     )

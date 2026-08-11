@@ -7,8 +7,12 @@ env:
 on:
   push:
     branches: [ master, main ]
+  # Run CI on PRs targeting `main` / `master` and on PRs that stack on top of another feature branch
+  # (`feature/**`). Stacked PRs — e.g. an auto-registration PR whose base is an in-flight migration PR —
+  # otherwise skip the test matrix entirely and only show `update_release_draft`.
   pull_request:
-    branches: [ master, main ]
+    branches: [ master, main, "feature/**" ]
+
 
 jobs:
   lint:

@@ -3,6 +3,7 @@ package com.example.heartbeatingactivity
 import zio._
 import zio.temporal._
 import zio.temporal.activity._
+import zio.temporal.json.CodecRegistry
 import zio.temporal.workflow._
 import zio.logging.backend.SLF4J
 
@@ -23,7 +24,13 @@ object HeartbeatingActivityBatchTerminate extends ZIOAppDefault {
 
     program.provideSome[Scope](
       ZWorkflowServiceStubsOptions.make,
-      ZWorkflowClientOptions.make,
+      ZWorkflowClientOptions.make @@
+        ZWorkflowClientOptions.withCodecRegistry(
+          new CodecRegistry()
+            .addInterface[HeartbeatingActivityBatchWorkflow]
+            .addInterface[RecordProcessorActivity]
+            .addInterface[ReporterActivity]
+        ),
       // Services
       ZWorkflowClient.make,
       ZWorkflowServiceStubs.make

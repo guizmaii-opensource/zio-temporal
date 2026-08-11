@@ -1,12 +1,15 @@
 package zio.temporal.fixture
 
 import zio._
+import zio.temporal.json.ZTemporalCodec
 import zio.temporal._
 import zio.temporal.activity._
 import zio.temporal.workflow._
 
-case class TransferError(msg: String) extends Exception(msg)
-case class Done()
+final case class TransferError(msg: String) extends Exception(msg) derives ZTemporalCodec
+
+case object Done derives ZTemporalCodec
+type Done = Done.type
 
 @activityInterface
 trait TransferActivity {
@@ -37,7 +40,7 @@ class TransferActivityImpl(
     }
 }
 
-case class TransferCommand(from: String, to: String, amount: BigDecimal)
+final case class TransferCommand(from: String, to: String, amount: BigDecimal) derives ZTemporalCodec
 
 @workflowInterface
 trait SagaWorkflow {

@@ -21,6 +21,14 @@ package object temporal {
   final type signalMethod      = SignalMethod
   final type workflowMethod    = WorkflowMethod
 
+  /** Re-exports so a single `import zio.temporal.*` brings the codec typeclass and the registry into scope.
+    */
+  final type ZTemporalCodec[A] = zio.temporal.json.ZTemporalCodec[A]
+  val ZTemporalCodec: zio.temporal.json.ZTemporalCodec.type = zio.temporal.json.ZTemporalCodec
+
+  final type CodecRegistry = zio.temporal.json.CodecRegistry
+  val CodecRegistry: zio.temporal.json.CodecRegistry.type = zio.temporal.json.CodecRegistry
+
   /** Alias for IO representing interaction with temporal server
     *
     * @tparam A

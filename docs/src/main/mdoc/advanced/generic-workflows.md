@@ -51,24 +51,29 @@ To avoid possible issues:
 2. Specify the upper-bound type in the workflow interface
 
 
-This is how proper jackson-serialized types look like
-```scala mdoc
-import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
+This is how the zio-json-serialized types look:
 
-// NOTE: jackson (de)serialization won't work without additional annotations
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
-@JsonSubTypes(
-  Array(
-    new JsonSubTypes.Type(value = classOf[Drink.Soda], name = "Soda"),
-    new JsonSubTypes.Type(value = classOf[Drink.Juice], name = "Juice")
-  )
-)
+```scala mdoc
+import zio.json.{DeriveJsonDecoder, DeriveJsonEncoder, JsonDecoder, JsonEncoder}
+
 sealed trait Drink
 object Drink {
   case class Soda(kind: String)               extends Drink
   case class Juice(kind: String, volume: Int) extends Drink
+
+  implicit val encoder: JsonEncoder[Drink] = DeriveJsonEncoder.gen[Drink]
+  implicit val decoder: JsonDecoder[Drink] = DeriveJsonDecoder.gen[Drink]
+
+  implicit val sodaEnc:  JsonEncoder[Soda]  = DeriveJsonEncoder.gen[Soda]
+  implicit val sodaDec:  JsonDecoder[Soda]  = DeriveJsonDecoder.gen[Soda]
+
+  implicit val juiceEnc: JsonEncoder[Juice] = DeriveJsonEncoder.gen[Juice]
+  implicit val juiceDec: JsonDecoder[Juice] = DeriveJsonDecoder.gen[Juice]
 }
 ```
+
+zio-json uses a `{"Soda": {...}}` / `{"Juice": {...}}` discriminator shape for sealed traits. Each concrete
+subtype also needs its own codec so it can flow as a parameter type on a parameterized child workflow.
 
 ## Define workflow interfaces properly
 This is how the proper workflow looks like:

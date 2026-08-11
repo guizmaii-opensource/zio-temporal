@@ -1,5 +1,7 @@
 package com.example.versioning_worker
 
+import zio.json.{DeriveJsonDecoder, DeriveJsonEncoder, JsonDecoder, JsonEncoder}
+import zio.temporal.json.ZTemporalCodec
 import zio.temporal._
 
 @workflowInterface
@@ -9,10 +11,10 @@ trait SubscriptionWorkflow {
   def proceedRecurringSubscription(subscriptionId: String): Unit
 }
 
-case class Subscription(
+final case class Subscription(
   id:        String,
   userEmail: String,
-  amount:    BigDecimal)
+  amount:    BigDecimal) derives ZTemporalCodec
 
 @activityInterface
 trait SubscriptionActivities {

@@ -1,13 +1,15 @@
 package com.example.error.handling
 
 import zio._
+import zio.json.JsonCodec
 import zio.temporal._
 import zio.temporal.activity._
 import zio.temporal.workflow._
 import zio.temporal.failure._
 
 object SafeMath {
-  case class MathError(error: String)
+  final case class MathError(error: String) derives JsonCodec
+
   def divide(x: Int, y: Int): IO[MathError, Int] =
     if (y == 0) ZIO.fail(MathError("Zero division"))
     else ZIO.succeed(x / y)
@@ -18,7 +20,7 @@ object TypedArithmeticActivityImpl {
     ZLayer.fromFunction(TypedArithmeticActivityImpl()(_: ZActivityRunOptions[Any]))
 }
 
-case class TypedArithmeticActivityImpl()(implicit options: ZActivityRunOptions[Any]) extends ArithmeticActivity {
+final case class TypedArithmeticActivityImpl()(implicit options: ZActivityRunOptions[Any]) extends ArithmeticActivity {
   override def divide(x: Int, y: Int): Int = {
     ZActivity.run {
       for {

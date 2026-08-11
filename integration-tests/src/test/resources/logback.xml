@@ -8,8 +8,18 @@
         </encoder>
     </appender>
 
-    <logger name="io.grpc.netty" level="warn"/>
-    <logger name="io.temporal" level="info"/>
+    <!--
+      Temporal-SDK internals are extremely chatty at INFO: each worker/test logs its
+      per-task-queue poller start/stop, managed-channel creation, service-stub construction,
+      and shutdown — every test spawns several workers, so CI output is pages of noise that
+      drowns the actual test results. Silence to WARN; actual failures still surface.
+    -->
+    <logger name="io.grpc" level="warn"/>
+    <logger name="io.temporal" level="warn"/>
+    <logger name="io.temporal.internal" level="warn"/>
+    <logger name="io.temporal.serviceclient" level="warn"/>
+    <logger name="io.temporal.worker" level="warn"/>
+    <logger name="io.temporal.testserver" level="warn"/>
     <logger name="io.temporal.internal.worker.Poller" level="error"/>
     <logger name="zio.temporal.internal.ZioUnsafeFacade" level="info"/>
 

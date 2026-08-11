@@ -1,6 +1,6 @@
 package zio.temporal.activity
 
-import zio.temporal.JavaTypeTag
+import zio.temporal.json.ZTemporalCodec
 import zio.temporal.internal.{InvocationMacroUtils, SharedCompileTimeMessages, TemporalWorkflowFacade}
 import zio.temporal.workflow.ZAsync
 
@@ -26,8 +26,8 @@ trait ZActivityExecutionSyntax {
     * @return
     *   the activity result
     */
-  inline def execute[R](inline f: R)(using javaTypeTag: JavaTypeTag[R]): R =
-    ${ ZActivityExecutionSyntax.executeImpl[R]('f, 'javaTypeTag) }
+  inline def execute[R](inline f: R)(using codec: ZTemporalCodec[R]): R =
+    ${ ZActivityExecutionSyntax.executeImpl[R]('f, 'codec) }
 
   /** Executes the given activity asynchronously. Accepts the activity method invocation
     *
@@ -47,15 +47,15 @@ trait ZActivityExecutionSyntax {
     * @return
     *   the activity result (async)
     */
-  inline def executeAsync[R](inline f: R)(using javaTypeTag: JavaTypeTag[R]): ZAsync[R] =
-    ${ ZActivityExecutionSyntax.executeAsyncImpl[R]('f, 'javaTypeTag) }
+  inline def executeAsync[R](inline f: R)(using codec: ZTemporalCodec[R]): ZAsync[R] =
+    ${ ZActivityExecutionSyntax.executeAsyncImpl[R]('f, 'codec) }
 }
 
 object ZActivityExecutionSyntax {
   def executeImpl[R: Type](
-    f:           Expr[R],
-    javaTypeTag: Expr[JavaTypeTag[R]]
-  )(using q:     Quotes
+    f:       Expr[R],
+    codec:   Expr[ZTemporalCodec[R]]
+  )(using q: Quotes
   ): Expr[R] = {
     import q.reflect.*
     val macroUtils = new InvocationMacroUtils[q.type]
@@ -78,14 +78,14 @@ object ZActivityExecutionSyntax {
         $stubbedClass,
         ${ Expr(methodName) },
         ${ method.argsExpr }
-      )($javaTypeTag)
+      )($codec)
     }.debugged(SharedCompileTimeMessages.generatedActivityExecute)
   }
 
   def executeAsyncImpl[R: Type](
-    f:           Expr[R],
-    javaTypeTag: Expr[JavaTypeTag[R]]
-  )(using q:     Quotes
+    f:       Expr[R],
+    codec:   Expr[ZTemporalCodec[R]]
+  )(using q: Quotes
   ): Expr[ZAsync[R]] = {
     import q.reflect.*
     val macroUtils = new InvocationMacroUtils[q.type]
@@ -109,7 +109,7 @@ object ZActivityExecutionSyntax {
           $stubbedClass,
           ${ Expr(methodName) },
           ${ method.argsExpr }
-        )($javaTypeTag)
+        )($codec)
       )
     }.debugged(SharedCompileTimeMessages.generatedActivityExecuteAsync)
   }
