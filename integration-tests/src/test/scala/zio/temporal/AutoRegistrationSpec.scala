@@ -113,14 +113,14 @@ object AutoRegistrationSpec extends ZIOSpecDefault {
       (for {
         env <- ZIO.service[ZTestWorkflowEnvironment[Any]]
         // Registry must be None when a custom DataConverter is in use.
-        _ = assertTrue(env.codecRegistry.isEmpty)
+        registryClearedBeforeAutoReg = assertTrue(env.codecRegistry.isEmpty)
         // Exercising an auto-reg call site with a None registry must succeed — the macro-generated
         // `None.foreach { r => r.register(...) }` body must compile and be inert at runtime.
         _ <- ZTestWorkflowEnvironment.newWorker("opt-out-queue") @@
                ZWorker.addWorkflow[SampleWorkflowImpl].fromClass @@
                ZWorker.addActivityImplementation(new PromiseActivityImpl(x => x, x => x))
         // The registry is still empty after the auto-reg sites ran.
-      } yield assertTrue(
+      } yield registryClearedBeforeAutoReg && assertTrue(
         env.codecRegistry.isEmpty
       )).provideSomeLayer[Scope](customEnvLayer)
     }

@@ -61,7 +61,8 @@ object InterfaceCodecsMacros {
 
     // If the type itself is annotated with @workflowInterface / @activityInterface, use it directly.
     // Otherwise walk ancestors for the closest annotated interface(s). Fall back to `I` itself if neither
-    // the type nor any ancestor is annotated — the collector will then emit a clear error.
+    // the type nor any ancestor is annotated; in this auto-registration path we collect with `strict = false`,
+    // so a type with no annotated boundary methods simply contributes no codecs.
     val interfaceSyms: List[Symbol] = {
       val selfAnnotated =
         implSym.hasAnnotation(WorkflowInterfaceSym) || implSym.hasAnnotation(ActivityInterfaceSym)
