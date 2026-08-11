@@ -260,7 +260,7 @@ ZIO Temporal encodes a lot of custom types on top of those supported by Temporal
 - `Option`
 - Scala collections (`Set`, `List`, `Array`, etc.)
 - Some `java.time` classes (`Instant`, `LocalDateTime`, `OffsetDateTime`)
-- `Enumeratum` enums, `Scala 3` enums (as `keyword`)
+- `Scala 3` enums (as `keyword`)
 
 Note that `String` can be encoded both as `text` and `keyword`. By default, it's `text`. If you need it to be encoded
 as `keyword`, you must wrap it into `ZSearchAttribute.keyword` method.  
@@ -282,30 +282,8 @@ val searchAttributes: Map[String, ZSearchAttribute] =
   )
 ```
 
-`Enumeratum` enum example:
+`Scala 3` enum example:
 
-```scala mdoc:reset
-import enumeratum.{Enum, EnumEntry}
-import zio.temporal._
-import zio.temporal.enumeratum._
-
-sealed trait Color extends EnumEntry
-object Color extends Enum[Color] {
-  case object Red extends Color
-  case object Green extends Color
-  case object Blue extends Color
-
-  override val values = findValues
-}
-
-val otherSearchAttributes: Map[String, ZSearchAttribute] = Map(
-  "EnumAttr"    -> ZSearchAttribute.keyword[Color](Color.Green),
-  "OptionEnum"  -> ZSearchAttribute.keyword(Option[Color](Color.Red)),
-  "OptionEnum2" -> ZSearchAttribute.keyword(Option.empty[Color])
-)
-```
-
-Same example with `Scala 3` enums
 ```scala
 import zio.temporal._
 
