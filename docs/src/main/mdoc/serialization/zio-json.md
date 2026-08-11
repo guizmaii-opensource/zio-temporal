@@ -75,9 +75,9 @@ companion), then re-try `addInterface`.
 
 ### Multiple interfaces
 
-`addInterface` returns the registry, so chain calls:
+`addInterface` returns the registry, so chain calls — one per workflow/activity interface your worker or client uses:
 
-```scala mdoc:silent
+```scala
 val registry = new CodecRegistry()
   .addInterface[PaymentWorkflow]
   .addInterface[PaymentActivity]

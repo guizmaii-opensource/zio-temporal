@@ -39,7 +39,7 @@ trait PaymentActivity {
 We'll improve our existing payment workflow, so that it have a confirmation step:
 
 ```scala mdoc
-sealed trait PaymentState
+sealed trait PaymentState derives ZTemporalCodec
 object PaymentState {
   case object Initial                 extends PaymentState
   case object Debited                 extends PaymentState

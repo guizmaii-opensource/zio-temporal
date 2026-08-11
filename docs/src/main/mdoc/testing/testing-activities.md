@@ -92,7 +92,7 @@ trait FibonacciHeartbeatActivity {
 }
 
 object FibonacciHeartbeatActivityImpl {
-  case class HeartbeatDetails(sum: BigDecimal, curr: Int, prev: Int, step: Int)
+  case class HeartbeatDetails(sum: BigDecimal, curr: Int, prev: Int, step: Int) derives ZTemporalCodec
 }
 
 // The counter is needed for demo purposes

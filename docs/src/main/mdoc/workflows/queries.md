@@ -38,7 +38,7 @@ trait PaymentActivity {
 We'll represent the payment state with such an enumeration:
 
 ```scala mdoc
-sealed trait PaymentState
+sealed trait PaymentState derives ZTemporalCodec
 object PaymentState {
   case object Initial  extends PaymentState
   case object Debited  extends PaymentState

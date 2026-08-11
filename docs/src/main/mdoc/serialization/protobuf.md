@@ -89,11 +89,17 @@ class SampleWorkflowImpl extends SampleWorkflow {
 
 In order to use Protobuf serializer, it's required to override the default `DataConverter`:
 
-```scala mdoc
+```scala
 import zio.temporal.workflow.ZWorkflowClientOptions
 import zio.temporal.protobuf.ProtobufDataConverter
 
 val optionsLayer =
   ZWorkflowClientOptions.make @@
-    ZWorkflowClientOptions.withDataConverter(ProtobufDataConverter.make())
+    ZWorkflowClientOptions.withDataConverter(
+      ProtobufDataConverter.make(
+        new CodecRegistry().addInterface[SampleWorkflow]
+      )
+    )
 ```
+
+`ProtobufDataConverter.make` takes a `CodecRegistry`, populated the same way as the default zio-json converter — see [ZIO-JSON serialization](./zio-json.md) for `addInterface` / `withCodecRegistry`. Real ScalaPB-generated messages get a `ZTemporalCodec` automatically (via an implicit bridge on `scalapb.GeneratedMessage`/`GeneratedSealedOneof`), so `addInterface[SampleWorkflow]` resolves them without any extra derivation — unlike the illustrative `WorkflowParams`/`WorkflowResult` case classes above, which are plain classes standing in for what Scalapb generates and can't be compile-checked here. Non-protobuf types reaching this converter (e.g. `Unit` return values, or any boundary type that isn't a ScalaPB message) fall through to a zio-json encoder backed by the same registry, so they need their own codec registered too.
