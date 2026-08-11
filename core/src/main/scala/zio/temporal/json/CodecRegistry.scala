@@ -278,6 +278,27 @@ object CodecRegistry {
   /** One registered parameterized-type codec candidate. Held per raw class in `byRawClass`. */
   private[json] final case class ParamEntry(genericType: Type, encoder: JsonEncoder[_], decoder: JsonDecoder[_])
 
+  /** Auto-registration entry point for an interface. Walks `I`'s `@workflowMethod` / `@signalMethod` / `@queryMethod` /
+    * `@activityMethod` methods and, if `registryOpt` is `Some(r)`, registers every parameter and return type's codec
+    * into `r`. When `registryOpt` is `None` this is a silent no-op — that's how the opt-out path for
+    * `withDataConverter(raw)` works.
+    *
+    * Used by `ZWorker.addWorkflow[I]`, `ZWorkflowClient.newWorkflowStub[I]`, and friends to eliminate the manual
+    * `.addInterface[...]` boilerplate. Users who want explicit control still have [[CodecRegistry#addInterface]].
+    */
+  inline def autoRegisterInterface[I](registryOpt: Option[CodecRegistry]): Unit =
+    ${ zio.temporal.internal.InterfaceCodecsMacros.autoRegisterInterfaceImpl[I]('registryOpt) }
+
+  /** Auto-registration entry point for an activity ''implementation class''. The type parameter `A` is the concrete
+    * impl type (e.g. `MyActivityImpl`); the macro walks `A`'s base classes, finds every `@activityInterface`-annotated
+    * ancestor, and registers each interface's codecs into the registry.
+    *
+    * This is the path taken by `ZWorker.addActivityImplementation(activity)` / friends, where the user passes an
+    * implementation whose declared type doesn't identify the activity interface directly.
+    */
+  inline def autoRegisterActivityImpl[A](registryOpt: Option[CodecRegistry]): Unit =
+    ${ zio.temporal.internal.InterfaceCodecsMacros.autoRegisterActivityImplImpl[A]('registryOpt) }
+
   /** Build a registry pre-populated with the given codecs. The typical usage from a client or worker setup:
     *
     * {{{

@@ -2,14 +2,24 @@ package zio.temporal.worker
 
 import io.temporal.worker.WorkerFactory
 import zio._
+import zio.temporal.json.CodecRegistry
 import zio.temporal.workflow.ZWorkflowClient
 
 /** Maintains worker creation and lifecycle.
   *
+  * The `codecRegistry` is propagated from the upstream `ZWorkflowClient` (which took it from `ZWorkflowClientOptions`)
+  * so every worker created by this factory shares the same registry instance — the client and its workers therefore
+  * auto-register into the same append-only registry that the data converter reads on encode/decode.
+  *
   * @see
   *   [[WorkerFactory]]
   */
-final class ZWorkerFactory private[zio] (val toJava: WorkerFactory) {
+final class ZWorkerFactory private[zio] (
+  val toJava: WorkerFactory,
+  private[zio] val codecRegistry: Option[CodecRegistry]) {
+
+  /** Secondary constructor retained for call sites that don't have a registry reference. */
+  private[zio] def this(toJava: WorkerFactory) = this(toJava, None)
 
   /** Allows to setup [[ZWorkerFactory]] with guaranteed finalization.
     */
@@ -64,7 +74,7 @@ final class ZWorkerFactory private[zio] (val toJava: WorkerFactory) {
     */
   def newWorker(taskQueue: String, options: ZWorkerOptions = ZWorkerOptions.default): UIO[ZWorker] =
     ZIO.succeedBlocking(
-      new ZWorker(toJava.newWorker(taskQueue, options.toJava))
+      new ZWorker(toJava.newWorker(taskQueue, options.toJava), codecRegistry)
     )
 
   /** @param taskQueue
@@ -74,7 +84,7 @@ final class ZWorkerFactory private[zio] (val toJava: WorkerFactory) {
     */
   def getWorker(taskQueue: String): UIO[Option[ZWorker]] =
     ZIO
-      .attemptBlocking(new ZWorker(toJava.getWorker(taskQueue)))
+      .attemptBlocking(new ZWorker(toJava.getWorker(taskQueue), codecRegistry))
       .refineToOrDie[IllegalArgumentException]
       .option
 }
@@ -112,11 +122,13 @@ object ZWorkerFactory {
   val make: URLayer[ZWorkflowClient with ZWorkerFactoryOptions, ZWorkerFactory] =
     ZLayer.fromZIO {
       ZIO.environmentWith[ZWorkflowClient with ZWorkerFactoryOptions] { environment =>
+        val client = environment.get[ZWorkflowClient]
         new ZWorkerFactory(
           WorkerFactory.newInstance(
-            environment.get[ZWorkflowClient].toJava,
+            client.toJava,
             environment.get[ZWorkerFactoryOptions].toJava
-          )
+          ),
+          client.codecRegistry
         )
       }
     }
