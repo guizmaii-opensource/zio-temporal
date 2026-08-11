@@ -52,13 +52,13 @@ object BuildConfig extends Dependencies {
 trait Dependencies {
 
   private object versions {
-    val temporal   = "1.34.0"
-    val zio        = "2.1.25"
+    val temporal   = "1.38.0"
+    val zio        = "2.1.26"
     val zioJson    = "0.9.2"
     val zioLogging = "2.5.3"
-    val zioPrelude = "1.0.0-RC47"
+    val zioPrelude = "1.0.0-RC48"
     val enumeratum = "1.9.0"
-    val otel       = "1.61.0"
+    val otel       = "1.65.0"
   }
 
   object Temporal {
@@ -78,7 +78,7 @@ trait Dependencies {
     val testFrameworks = Seq(new TestFramework("zio.test.sbt.ZTestFramework"))
 
     // only for examples
-    val cli = "dev.zio" %% "zio-cli" % "0.8.0"
+    val cli = "dev.zio" %% "zio-cli" % "0.8.1"
   }
 
   object Scalapb {
@@ -94,7 +94,7 @@ trait Dependencies {
   object Logging {
     val zio      = "dev.zio"       %% "zio-logging"       % versions.zioLogging
     val zioSlf4j = "dev.zio"       %% "zio-logging-slf4j" % versions.zioLogging
-    val logback  = "ch.qos.logback" % "logback-classic"   % "1.5.32"
+    val logback  = "ch.qos.logback" % "logback-classic"   % "1.6.1"
   }
 
   object Testing {
@@ -106,10 +106,10 @@ trait Dependencies {
     val otelExporterOtlp     = "io.opentelemetry"         % "opentelemetry-exporter-otlp"               % versions.otel
     val otelTracePropagators = "io.opentelemetry"         % "opentelemetry-extension-trace-propagators" % versions.otel
     val otelOpentracingShim  = "io.opentelemetry"         % "opentelemetry-opentracing-shim"            % versions.otel
-    val otelSemvonc          = "io.opentelemetry.semconv" % "opentelemetry-semconv"                     % "1.40.0"
+    val otelSemvonc          = "io.opentelemetry.semconv" % "opentelemetry-semconv"                     % "1.43.0"
 
     val otel = Seq(otelApi, otelExporterOtlp, otelTracePropagators, otelOpentracingShim, otelSemvonc)
 
-    val micrometerOtlp = "io.micrometer" % "micrometer-registry-otlp" % "1.16.5"
+    val micrometerOtlp = "io.micrometer" % "micrometer-registry-otlp" % "1.17.0"
   }
 }
