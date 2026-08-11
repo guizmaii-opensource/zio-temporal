@@ -12,6 +12,11 @@ const sidebars = {
       ]
     },
     {
+      type: "doc",
+      id: "migration-1.0",
+      label: "Migrating to 1.0"
+    },
+    {
       type: "category",
       label: "Workflows",
       items: [
