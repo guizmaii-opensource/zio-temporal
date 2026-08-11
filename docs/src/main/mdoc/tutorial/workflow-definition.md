@@ -21,7 +21,7 @@ class HelloWorldImpl extends HelloWorld:
 
 The trait is annotated with [`@workflowInterface`](https://www.javadoc.io/doc/io.temporal/temporal-sdk/latest/io/temporal/workflow/WorkflowInterface.html) and the method that Temporal invokes to start the Workflow is annotated [`@workflowMethod`](https://www.javadoc.io/doc/io.temporal/temporal-sdk/latest/io/temporal/workflow/WorkflowMethod.html), in this case `apply()`.  There can be only one such annotated method per Workflow Definition, so an application with two Workflows, for example, requires having two separate annotated traits.
 
-These annotations are provided by the [zio.temporal](https://zio-temporal.vhonta.dev/api/zio/temporal/) package, and so can be imported with `import zio.temporal.*`.
+These annotations are provided by the [zio.temporal](https://guizmaii-opensource.github.io/zio-temporal/api/zio/temporal/) package, and so can be imported with `import zio.temporal.*`.
 
 ## Workflows, Tasks, and Activities
 

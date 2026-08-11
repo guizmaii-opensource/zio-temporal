@@ -10,24 +10,24 @@ ThisBuild / organization  := "com.guizmaii"
 ThisBuild / versionScheme := Some("early-semver")
 
 val publishSettings = Seq(
-  organizationHomepage := Some(url("https://vhonta.dev")),
-  homepage             := Some(url("https://zio-temporal.vhonta.dev")),
+  organizationHomepage := Some(url("https://github.com/guizmaii-opensource")),
+  homepage             := Some(url("https://guizmaii-opensource.github.io/zio-temporal")),
   licenses             := Seq(
     "Apache 2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0")
   ),
   scmInfo := Some(
     ScmInfo(
-      url(s"https://github.com/vitaliihonta/zio-temporal"),
-      s"scm:git:https://github.com/vitaliihonta/zio-temporal.git",
-      Some(s"scm:git:git@github.com:vitaliihonta/zio-temporal.git")
+      url(s"https://github.com/guizmaii-opensource/zio-temporal"),
+      s"scm:git:https://github.com/guizmaii-opensource/zio-temporal.git",
+      Some(s"scm:git:git@github.com:guizmaii-opensource/zio-temporal.git")
     )
   ),
   developers := List(
     Developer(
-      id = "vitaliihonta",
-      name = "Vitalii Honta",
-      email = "vitalii.honta@gmail.com",
-      url = url("https://github.com/vitaliihonta")
+      id = "guizmaii",
+      name = "Jules Ivanic",
+      email = "jules.ivanic@gmail.com",
+      url = url("https://github.com/guizmaii")
     )
   )
 )
@@ -208,7 +208,7 @@ ThisBuild / updateSiteVariables := {
     Map[String, String](
       "organization"           -> (ThisBuild / organization).value,
       "latestVersion"          -> version.value,
-      "downloadReportsBaseUrl" -> "https://zio-temporal.vhonta.dev/assets"
+      "downloadReportsBaseUrl" -> "https://guizmaii-opensource.github.io/zio-temporal/assets"
     )
 
   val fileHeader =

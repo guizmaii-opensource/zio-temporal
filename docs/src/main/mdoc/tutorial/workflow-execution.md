@@ -44,7 +44,7 @@ class HelloWorldImpl extends HelloWorld:
   override def apply(name: String) = s"Hello $name!"
 ```
 
-Looking at the sequence diagram above, see that your program acquires a stub instance by invoking the [`newWorkflowStub[]()`](https://zio-temporal.vhonta.dev/api/zio/temporal/workflow/ZWorkflowClient#newWorkflowStub[A](workflowId:String,runId:Option[String])(implicitevidence$5:scala.reflect.ClassTag[A],implicitevidence$6:zio.temporal.workflow.IsWorkflow[A]):zio.UIO[zio.temporal.workflow.ZWorkflowStub.Of[A]]) method on a `ZWorkflowClient` instance.
+Looking at the sequence diagram above, see that your program acquires a stub instance by invoking the [`newWorkflowStub[]()`](https://guizmaii-opensource.github.io/zio-temporal/api/zio/temporal/workflow/ZWorkflowClient#newWorkflowStub[A](workflowId:String,runId:Option[String])(implicitevidence$5:scala.reflect.ClassTag[A],implicitevidence$6:zio.temporal.workflow.IsWorkflow[A]):zio.UIO[zio.temporal.workflow.ZWorkflowStub.Of[A]]) method on a `ZWorkflowClient` instance.
 
 We write `newWorkflowStub[]()` with the square brackets and parentheses to indicate that this method takes both a type parameter and a value parameter.  The type parameter is the type of the Workflow to be executed, and the value parameter specifies the configuration options for the Workflow.  The type of our example Workflow is `HelloWorld`, therefore we obtain a stub for it with an invocation of the form `newWorkflowStub[HelloWorld]()`, which will return an object of type:
 
@@ -56,9 +56,9 @@ As before, we can understand this ZIO effect type by inspecting its three type p
 
 The error type of `Nothing` we have seen before; it tells us that this effect cannot return an error.  In other words, if the effect completes, then it must complete successfully by returning a value of the third type: `ZWorkflowStub & HelloWorld`.
 
-This type returned upon successful completion is a [Scala intersection type](https://docs.scala-lang.org/scala3/book/types-intersection.html).  Such types, indicated by the ampersand (`&`) character, we have already encountered.  An object of type `ZWorkflowStub & HelloWorld` implements _both_ the trait of the Workflow Definition, as well as of the [`ZWorkflowStub`](https://zio-temporal.vhonta.dev/api/zio/temporal/workflow/ZWorkflowStub) trait, which adds several useful methods.
+This type returned upon successful completion is a [Scala intersection type](https://docs.scala-lang.org/scala3/book/types-intersection.html).  Such types, indicated by the ampersand (`&`) character, we have already encountered.  An object of type `ZWorkflowStub & HelloWorld` implements _both_ the trait of the Workflow Definition, as well as of the [`ZWorkflowStub`](https://guizmaii-opensource.github.io/zio-temporal/api/zio/temporal/workflow/ZWorkflowStub) trait, which adds several useful methods.
 
-Although this stub makes our development easier by providing an object with the trait we created, we cannot just invoke the trait’s methods as we would in a non-Temporal program.  Because the execution process goes through the Temporal infrastructure, we must execute it using the [`execute()`](https://zio-temporal.vhonta.dev/api/zio/temporal/workflow/ZWorkflowStub$.html#execute[R](f:R):zio.temporal.TemporalIO[R]) method provided by the [`ZWorkflowStub`](https://zio-temporal.vhonta.dev/api/zio/temporal/workflow/ZWorkflowStub$) companion object.
+Although this stub makes our development easier by providing an object with the trait we created, we cannot just invoke the trait’s methods as we would in a non-Temporal program.  Because the execution process goes through the Temporal infrastructure, we must execute it using the [`execute()`](https://guizmaii-opensource.github.io/zio-temporal/api/zio/temporal/workflow/ZWorkflowStub$.html#execute[R](f:R):zio.temporal.TemporalIO[R]) method provided by the [`ZWorkflowStub`](https://guizmaii-opensource.github.io/zio-temporal/api/zio/temporal/workflow/ZWorkflowStub$) companion object.
 
 Given a value named `workflowStub` of type `ZWorkflowStub & HelloWorld`, the invocation of `execute()` could look like this:
 
@@ -131,8 +131,8 @@ The first type is `Any` because both of the composed effects have a first type p
 
 But this `for` expression is not yet complete.  It refers to two variables that must be supplied:
 
-1. `client`, an instance of [`ZWorkflowClient`](https://zio-temporal.vhonta.dev/api/zio/temporal/workflow/ZWorkflowClient), which has the `newWorkflowStub[]()` method, and
-2. `workflowOptions`, an instance of [`ZWorkflowOptions`](https://zio-temporal.vhonta.dev/api/zio/temporal/workflow/ZWorkflowOptions), which `newWorkflowStub[]()` requires as a value parameter.
+1. `client`, an instance of [`ZWorkflowClient`](https://guizmaii-opensource.github.io/zio-temporal/api/zio/temporal/workflow/ZWorkflowClient), which has the `newWorkflowStub[]()` method, and
+2. `workflowOptions`, an instance of [`ZWorkflowOptions`](https://guizmaii-opensource.github.io/zio-temporal/api/zio/temporal/workflow/ZWorkflowOptions), which `newWorkflowStub[]()` requires as a value parameter.
 
 Let’s look at the Workflow options first.
 
@@ -148,7 +148,7 @@ ZWorkflowOptions
   .withTaskQueue("my-task-queue")
 ```
 
-The [`ZWorkflowOptions`](https://zio-temporal.vhonta.dev/api/zio/temporal/workflow/ZWorkflowOptions$) singleton object gives us the [`withWorkflowId()`](https://zio-temporal.vhonta.dev/api/zio/temporal/workflow/ZWorkflowOptions.html#withWorkflowId(value:String):zio.temporal.workflow.ZWorkflowOptions) method, which returns an object with the [`withTaskQueue()`](https://zio-temporal.vhonta.dev/api/zio/temporal/workflow/ZWorkflowOptions$$SetTaskQueue.html#withTaskQueue(value:String):zio.temporal.workflow.ZWorkflowOptions) method.
+The [`ZWorkflowOptions`](https://guizmaii-opensource.github.io/zio-temporal/api/zio/temporal/workflow/ZWorkflowOptions$) singleton object gives us the [`withWorkflowId()`](https://guizmaii-opensource.github.io/zio-temporal/api/zio/temporal/workflow/ZWorkflowOptions.html#withWorkflowId(value:String):zio.temporal.workflow.ZWorkflowOptions) method, which returns an object with the [`withTaskQueue()`](https://guizmaii-opensource.github.io/zio-temporal/api/zio/temporal/workflow/ZWorkflowOptions$$SetTaskQueue.html#withTaskQueue(value:String):zio.temporal.workflow.ZWorkflowOptions) method.
 
 We used the Task Queue name already when we started the Worker.  Each Worker listens to exactly one Task Queue, so the name provided when executing a Workflow must match the name used when constructing the Worker that is to perform the execution.  The name is a `String` value.
 
@@ -214,7 +214,7 @@ You may find one way more readable than the other.  Which you prefer is a matter
 ## Accessing a Dependency Service
 
 
-[`ZWorkflowClient`](https://zio-temporal.vhonta.dev/api/zio/temporal/workflow/ZWorkflowClient) is a dependency to be injected into this program.  We see an instance of this type named `client` used in the `for` expression where its `newWorkflowStub[]()` method is applied to the Workflow type and execution options.  `ZWorkflowClient` is a type included in the ZIO-Temporal library, and later we will see how to provide it to the program.  In the context of the code we are working on here, we can just pluck an instance out of the context of the `for` expression so that it will be in scope when needed for the `newWorkflowStub[]()` method.  The means for this is the [`ZIO.serviceWithZIO[]()`](https://javadoc.io/doc/dev.zio/zio_3/latest/zio/ZIO$.html#serviceWithZIO-ecf) method.
+[`ZWorkflowClient`](https://guizmaii-opensource.github.io/zio-temporal/api/zio/temporal/workflow/ZWorkflowClient) is a dependency to be injected into this program.  We see an instance of this type named `client` used in the `for` expression where its `newWorkflowStub[]()` method is applied to the Workflow type and execution options.  `ZWorkflowClient` is a type included in the ZIO-Temporal library, and later we will see how to provide it to the program.  In the context of the code we are working on here, we can just pluck an instance out of the context of the `for` expression so that it will be in scope when needed for the `newWorkflowStub[]()` method.  The means for this is the [`ZIO.serviceWithZIO[]()`](https://javadoc.io/doc/dev.zio/zio_3/latest/zio/ZIO$.html#serviceWithZIO-ecf) method.
 
 `ZIO.serviceWithZIO[]()` takes a type parameter and a value parameter.  The type parameter is that of a dependency to be injected, in this case `ZWorkflowClient`.  The value parameter is a function whose input parameter is the dependency and whose return value is the effect that will use that dependency, in this case the `for` expression that starts the Workflow Execution.
 

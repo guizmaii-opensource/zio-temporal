@@ -28,7 +28,7 @@ All of these steps together make up a **distributed transaction** that crosses m
 If any of the steps fail, all the completed preceding transactions should be reversed accordingly. We cannot simply "delete" the prior transactions or "go back in time" - particularly where money and bookings are concerned, it is important to have an immutable record of attempts and failures.  
 Therefore, we should accumulate a list of compensating actions to execute when failure occurs.
 
-You can find the full example [here](https://github.com/vitaliihonta/zio-temporal/tree/main/examples/src/main/scala/com/example/bookingsaga).
+You can find the full example [here](https://github.com/guizmaii-opensource/zio-temporal/tree/main/examples/src/main/scala/com/example/bookingsaga).
 
 Let's start with some basic imports that will be required for the whole demonstration:
 

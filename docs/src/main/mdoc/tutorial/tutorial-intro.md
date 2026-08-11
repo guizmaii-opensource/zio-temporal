@@ -55,13 +55,13 @@ JSON `String` values may contain many quotation-mark characters.  The need to es
 
 ### Building with Scala
 
-This tutorial uses the [Scala build tool](https://www.scala-sbt.org/1.x/docs/) (SBT) to manage library dependencies.  There are three library dependencies needed for any of the code examples in this tutorial: [ZIO-Temporal](https://github.com/vitaliihonta/zio-temporal), [ZIO-JSON](https://github.com/zio/zio-json), and a logging library.  The following build file, named `build.sbt`, is enough for all the examples in the tutorial:
+This tutorial uses the [Scala build tool](https://www.scala-sbt.org/1.x/docs/) (SBT) to manage library dependencies.  There are three library dependencies needed for any of the code examples in this tutorial: [ZIO-Temporal](https://github.com/guizmaii-opensource/zio-temporal), [ZIO-JSON](https://github.com/zio/zio-json), and a logging library.  The following build file, named `build.sbt`, is enough for all the examples in the tutorial:
 
 ```scala title="build.sbt"
 scalaVersion := "3.5.1"
 
 libraryDependencies ++= Seq(
-  "dev.vhonta" %% "zio-temporal-core" % "0.6.1",
+  "@ORGANIZATION@" %% "zio-temporal-core" % "@VERSION@",
   "dev.zio"    %% "zio-json"          % "0.7.3",
   "org.slf4j"   % "slf4j-nop"         % "2.0.16",
 )
@@ -84,7 +84,7 @@ To compile and run a Scala program, SBT will look for source code files in a fol
 
 ## Temporal
 
-This section is a brief description of Temporal components and operation without any code examples.  If you understand this section, then the code presented in later sections will make more sense.  For complete Temporal documentation see [the Temporal.io website](https://docs.temporal.io/) and the [ZIO-Temporal API documentation](https://zio-temporal.vhonta.dev/api/zio/temporal/worker/ZWorkerFactory).
+This section is a brief description of Temporal components and operation without any code examples.  If you understand this section, then the code presented in later sections will make more sense.  For complete Temporal documentation see [the Temporal.io website](https://docs.temporal.io/) and the [ZIO-Temporal API documentation](https://guizmaii-opensource.github.io/zio-temporal/api/zio/temporal/worker/ZWorkerFactory).
 
 There are three required parts to a Temporal application:
 
@@ -137,11 +137,11 @@ Once there is a Workflow Definition, a running Worker can be commanded to execut
 
 The steps to start a Temporal Worker running are:
 
-1. Construct a new Temporal [`ZWorker`](https://zio-temporal.vhonta.dev/api/zio/temporal/worker/ZWorker) instance by using a [`ZWorkerFactory`](https://zio-temporal.vhonta.dev/api/zio/temporal/worker/ZWorkerFactory).
+1. Construct a new Temporal [`ZWorker`](https://guizmaii-opensource.github.io/zio-temporal/api/zio/temporal/worker/ZWorker) instance by using a [`ZWorkerFactory`](https://guizmaii-opensource.github.io/zio-temporal/api/zio/temporal/worker/ZWorkerFactory).
 2. Configure that new `ZWorker` to know which _Workflow Types_ it will support.
 3. Run that Worker by telling the `ZWorkerFactory` to start it.
 
-It is the `ZWorkerFactory` that configures the `ZWorker` with the parameters necessary for connecting to the Temporal server.  For this purpose the `ZWorkerFactory` is constructed with a [`ZWorkflowClient`](https://zio-temporal.vhonta.dev/api/zio/temporal/workflow/ZWorkflowClient) instance.  That `ZWorkflowClient`, in turn, is constructed with an instance of [`ZWorkflowServiceStubs`](https://zio-temporal.vhonta.dev/api/zio/temporal/workflow/ZWorkflowServiceStubs) that has the network connection parameters for the Temporal Server (_i.e._ the Workflow Service).
+It is the `ZWorkerFactory` that configures the `ZWorker` with the parameters necessary for connecting to the Temporal server.  For this purpose the `ZWorkerFactory` is constructed with a [`ZWorkflowClient`](https://guizmaii-opensource.github.io/zio-temporal/api/zio/temporal/workflow/ZWorkflowClient) instance.  That `ZWorkflowClient`, in turn, is constructed with an instance of [`ZWorkflowServiceStubs`](https://guizmaii-opensource.github.io/zio-temporal/api/zio/temporal/workflow/ZWorkflowServiceStubs) that has the network connection parameters for the Temporal Server (_i.e._ the Workflow Service).
 
 A Worker communicates with the Temporal Server through a channel identified by the name of the Task Queue from which it will receive commands to work on Workflows.  The name of that Task Queue is given to the Worker when it is constructed by `ZWorkerFactory`.
 

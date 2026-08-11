@@ -37,7 +37,7 @@ The `:=` operator above assigns the value on the right to the configuration sett
 
 ```scala
 libraryDependencies ++= Seq(
-  "dev.vhonta" %% "zio-temporal-core" % "0.6.1",
+  "@ORGANIZATION@" %% "zio-temporal-core" % "@VERSION@",
   "org.slf4j" % "slf4j-nop" % "2.0.16",
 )
 ```
@@ -54,7 +54,7 @@ This is a `build.sbt` file that will work for all the examples in this tutorial:
 scalaVersion := "3.5.1"
 
 libraryDependencies ++= Seq(
-  "dev.vhonta" %% "zio-temporal-core" % "0.6.1",
+  "@ORGANIZATION@" %% "zio-temporal-core" % "@VERSION@",
   "dev.zio"    %% "zio-json"          % "0.7.3",
   "org.slf4j"   % "slf4j-nop"         % "2.0.16",
 )

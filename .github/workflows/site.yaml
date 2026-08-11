@@ -8,13 +8,16 @@ on:
   release:
     types:
       - published
+concurrency:
+  group: 'pages'
+  cancel-in-progress: false
+
 jobs:
-  publish-website:
+  build-website:
     runs-on: ubuntu-latest
     if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
     permissions:
       contents: read
-      packages: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -30,10 +33,19 @@ jobs:
         run: sbt compile
       - name: Generate site
         run: make build-site
-      - name: Publish
-        uses: cloudflare/wrangler-action@3.13.0
+      - uses: actions/upload-pages-artifact@v3
         with:
-          apiToken: ${{ secrets.CF_API_TOKEN }}
-          accountId: ${{ secrets.CF_ACCOUNT_ID }}
-          command: pages publish --project-name=zio-temporal build/
-          workingDirectory: 'website'
+          path: website/build
+
+  publish-website:
+    needs: build-website
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
