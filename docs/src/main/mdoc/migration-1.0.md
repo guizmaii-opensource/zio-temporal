@@ -84,11 +84,20 @@ Since `ProtobufDataConverter` is handed to `withDataConverter`, it doesn't parti
 call is exactly what opts a client out of it) — build the registry explicitly. See
 [Protobuf](./serialization/protobuf.md).
 
-### 6. Sum-type JSON shape changed
+### 6. Sum-type JSON shape changed — read this if you have in-flight workflows
 
 Jackson encoded a sealed trait's subtype as `{"type":"Banana","curvature":0.5}`. zio-json's default shape is
-`{"Banana":{"curvature":0.5}}`. If you need the old shape back — e.g. for compatibility with an external system
-reading the JSON, not for workflow history replay (see step 8) — annotate the sealed trait:
+`{"Banana":{"curvature":0.5}}`. These are structurally different, not just cosmetically — a default zio-json
+decoder **cannot parse the old Jackson shape at all**:
+
+```scala
+JsonCodec[PaymentStatus].decoder.decodeJson("""{"type":"Failed","reason":"card declined"}""")
+// Left("(invalid disambiguator)")   <-- fails, even though this is exactly what Jackson used to write
+```
+
+If any sealed trait crosses a Temporal boundary **and you have workflows already in flight** (started before the
+upgrade, not yet completed) that used it, restore the Jackson-compatible shape before upgrading, or that workflow's
+history will fail to replay past the event carrying the old payload:
 
 ```scala
 import zio.json.jsonDiscriminator
@@ -96,6 +105,14 @@ import zio.json.jsonDiscriminator
 @jsonDiscriminator("type")
 sealed trait PaymentStatus derives JsonCodec
 ```
+
+Verified: with the annotation, the same Jackson-shaped payload above decodes correctly; without it, it doesn't. See
+step 8 — this annotation is not optional decoration for a cosmetic wire-format preference, it's the actual
+replay-compatibility mechanism for sum types.
+
+If you have no in-flight workflows using a given sealed trait (e.g. this is a fresh deployment, or that type only
+started existing after the upgrade), you don't need the annotation — new payloads are always written and read in
+the same shape regardless.
 
 ### 7. Generic wrapper types: one instantiation per raw class
 
@@ -105,11 +122,19 @@ encoding now fails with a clear ambiguity error instead of silently picking the 
 can't disambiguate them. Split into distinct wrapper types if you hit this. `List` / `Map` / `Either` and other
 collections are unaffected, since they dispatch per-element rather than by wrapper class.
 
-### 8. In-flight workflows: no action needed
+### 8. In-flight workflows
 
-Workflow histories already recorded under the Jackson `json/plain` encoding **replay transparently** — a decode-only
-`json/plain` compatibility converter, backed by the same `CodecRegistry`, handles them. Fresh payloads are always
-written under the new `json/zio` encoding; you don't need to regenerate or migrate any recorded history.
+Workflow histories already recorded under the Jackson `json/plain` encoding replay through a decode-only `json/plain`
+compatibility converter, backed by the same `CodecRegistry` — you never need to regenerate or migrate recorded
+history files themselves. Fresh payloads are always written under the new `json/zio` encoding.
+
+That compatibility converter decodes with the *same* zio-json decoders your registry already has — it does not
+special-case Jackson's wire shape. For primitives and plain case classes, whose shape is identical either way, this
+really is "no action needed." For **sealed traits**, it isn't: see step 6. Every sealed trait that could appear in
+an in-flight workflow's history needs `@jsonDiscriminator("type")`, or replay fails the moment it reaches that
+event. Do this check before you deploy 1.0.0 against any workflow that isn't guaranteed to be freshly started —
+it's not something that fails at compile time or even at deploy time, only when Temporal actually replays the
+affected history.
 
 ## What compile errors look like
 
