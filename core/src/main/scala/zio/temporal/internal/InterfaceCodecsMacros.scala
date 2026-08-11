@@ -160,10 +160,11 @@ object InterfaceCodecsMacros {
       * the failure.
       *
       * When `strict = true` (the default, used by `addInterface[I]`), a missing codec aborts compilation. When
-      * `strict = false` (used by the auto-registration call sites), types without a summonable codec are silently
-      * skipped — auto-reg must not fail compilation for types the user knowingly left uncodec-able (e.g. Scala 3
-      * `Int | Null` erasure-test fixtures, newtype union tests). Those types erase to `Object` at runtime and the user
-      * accepts that the payload path is not meant to handle them.
+      * `strict = false` (used by the auto-registration call sites), types without a summonable codec are skipped with a
+      * compile-time warning rather than an error — auto-reg must not fail compilation for types the user knowingly left
+      * uncodec-able (e.g. Scala 3 `Int | Null` erasure-test fixtures, newtype union tests), which erase to `Object` at
+      * runtime and are handled by a separate fallback. The warning still surfaces the skip so a genuinely forgotten
+      * codec isn't silent.
       */
     def collectInterfaceCodecs[I: Type](
       interfaceSym: Symbol,
@@ -299,10 +300,20 @@ object InterfaceCodecsMacros {
                       "`JsonDecoder` on its companion), then re-try."
                   )
                 } else {
-                  // Non-strict: silently skip. The user either registered the codec elsewhere (explicit
-                  // `.addInterface` / `.register`) or accepts that this type is uncodec-able (e.g. Scala 3 union
-                  // types that erase to Object). A runtime "No ZTemporalCodec registered for …" will still fire
-                  // at encode time if they actually try to serialize a value of the missing type.
+                  // Non-strict: skip, but warn — don't fail the build. Some referenced types genuinely have no
+                  // registrable codec by design (e.g. Scala 3 union types that erase to Object, handled by a
+                  // separate runtime fallback in ZioJsonPayloadConverter). But most of the time a skip here means
+                  // the user forgot a codec, and letting that pass in total silence reintroduces exactly the
+                  // "silent hang until first execute()" failure mode the compile-time gate exists to prevent.
+                  // The warning surfaces it at compile time without hard-failing the cases that need to stay green.
+                  report.warning(
+                    s"Cannot $context codec for type `${t.show}` referenced in interface `$interfaceName` — " +
+                      "skipping (auto-registration is non-strict).\n" +
+                      s"Reason: ${failure.explanation}\n" +
+                      "If this type is actually serialized, this will fail at runtime with " +
+                      "`No ZTemporalCodec registered for …`. Provide an implicit `ZTemporalCodec` for this type, " +
+                      "or if this is intentional (e.g. an erased union type with a runtime fallback), ignore this warning."
+                  )
                   Nil
                 }
             }
