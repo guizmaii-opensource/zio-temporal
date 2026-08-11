@@ -56,13 +56,39 @@ class CodecRegistryAutoRegisterSpec extends AnyWordSpec with Matchers {
       r.decoderForType(classOf[AutoUser]) should not be null
     }
 
-    "silently skip types without a summonable codec (non-strict mode)" in {
+    "skip types without a summonable codec rather than aborting compilation (non-strict mode)" in {
       val r = new CodecRegistry()
       // WorkflowWithUncodecableType's method takes `Any` which has no ZTemporalCodec. Non-strict mode
       // must skip it rather than abort compilation.
       CodecRegistry.autoRegisterInterface[WorkflowWithUncodecableType](Some(r))
       // The method also takes `String` which does have a codec, so that should still be registered.
       r.decoderForType(classOf[String]) should not be null
+    }
+
+    "warn (not silently skip) when a referenced type has no summonable codec" in {
+      // Drives the real Scala 3 compiler over a standalone source mirroring WorkflowWithUncodecableType above,
+      // to prove the non-strict path actually emits a compiler *warning* rather than compiling in total
+      // silence — scala.compiletime.testing.typeCheckErrors (used by ZTemporalCodecCompileFailSpec) can't
+      // assert this: it only ever surfaces errors, dropping warnings before returning.
+      val diagnostics = CompilerWarnings.diagnosticsOf(
+        """
+          import zio.temporal.*
+
+          @workflowInterface
+          trait WorkflowWithUncodecableType {
+            @workflowMethod
+            def process(value: Any, label: String): String
+          }
+
+          object Probe {
+            zio.temporal.json.CodecRegistry.autoRegisterInterface[WorkflowWithUncodecableType](
+              Some(new zio.temporal.json.CodecRegistry())
+            )
+          }
+        """
+      )
+      diagnostics.filter(_.isError) shouldBe empty
+      diagnostics.exists(d => d.isWarning && d.message.contains("Cannot auto-register codec")) shouldBe true
     }
   }
 

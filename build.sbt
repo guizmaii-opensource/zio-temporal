@@ -100,6 +100,12 @@ lazy val core = project
   .settings(
     name := "zio-temporal-core",
     libraryDependencies ++= coreLibs,
+    // Test-only: drives the Scala 3 compiler in-process to assert on compiler *warnings* emitted by
+    // zio-temporal's own inline macros (e.g. CodecRegistryAutoRegisterSpec). `scala.compiletime.testing.
+    // typeCheckErrors` can't be used for this — it's a compiler intrinsic that only ever surfaces errors,
+    // warnings are filtered out before it returns (verified empirically). Already on sbt's own classpath
+    // (zinc needs it to compile Scala 3 sources), so this adds no new download.
+    libraryDependencies += "org.scala-lang" %% "scala3-compiler" % scalaVersion.value % Test,
     buildInfoKeys := Seq[BuildInfoKey](
       organization,
       BuildInfoKey.map(name) { case (k, _) => k -> "zio-temporal" },
