@@ -94,7 +94,7 @@ trait Dependencies {
   object Logging {
     val zio      = "dev.zio"       %% "zio-logging"       % versions.zioLogging
     val zioSlf4j = "dev.zio"       %% "zio-logging-slf4j" % versions.zioLogging
-    val logback  = "ch.qos.logback" % "logback-classic"   % "1.6.1"
+    val logback  = "ch.qos.logback" % "logback-classic"   % "1.6.2"
   }
 
   object Testing {
