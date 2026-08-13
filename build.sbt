@@ -9,6 +9,14 @@ val scala3 = "3.3.8"
 ThisBuild / organization  := "com.guizmaii"
 ThisBuild / versionScheme := Some("early-semver")
 
+// zio-cli 0.8.1 — its latest release, used only in the non-published `examples`/`docs`
+// modules — still depends on zio-json 0.9.2, while everything else here is on 0.10.0.
+// early-semver treats that 0.9->0.10 bump as a major (breaking) version, so sbt fails the
+// build on eviction. zio-cli is the only thing still pulling 0.9.2, and the 0.9.2->0.10.0
+// diff (https://github.com/zio/zio-json/compare/v0.9.2...v0.10.0) contains no encoder/decoder
+// changes, so we accept the eviction instead of waiting on a zio-cli release.
+ThisBuild / libraryDependencySchemes += "dev.zio" %% "zio-json" % "always"
+
 val publishSettings = Seq(
   organizationHomepage := Some(url("https://github.com/guizmaii-opensource")),
   homepage             := Some(url("https://guizmaii-opensource.github.io/zio-temporal")),
