@@ -328,7 +328,7 @@ object ZWorkflowState extends ZWorkflowStateNumericSyntax with ZWorkflowStateMap
       *   this state updated
       */
     override def updateWhen(pf: PartialFunction[A, A]): this.type = {
-      pf.applyOrElse[A, A](underlying, identity[A])
+      underlying = pf.applyOrElse[A, A](underlying, identity[A])
       this
     }
 
