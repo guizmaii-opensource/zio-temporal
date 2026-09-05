@@ -4,7 +4,7 @@ import scala.collection.Seq
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
-val scala3 = "3.3.8"
+val scala3 = "3.9.0"
 
 ThisBuild / organization  := "com.guizmaii"
 ThisBuild / versionScheme := Some("early-semver")
@@ -114,7 +114,7 @@ lazy val core = project
     // warnings are filtered out before it returns (verified empirically). Already on sbt's own classpath
     // (zinc needs it to compile Scala 3 sources), so this adds no new download.
     libraryDependencies += "org.scala-lang" %% "scala3-compiler" % scalaVersion.value % Test,
-    buildInfoKeys := Seq[BuildInfoKey](
+    buildInfoKeys                           := Seq[BuildInfoKey](
       organization,
       BuildInfoKey.map(name) { case (k, _) => k -> "zio-temporal" },
       version,
